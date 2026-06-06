@@ -1,81 +1,75 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict
-from jose import JWTError, jwt
+from __future__ import annotations
+
+import logging
 import os
+from pathlib import Path
 
-from fastapi import APIRouter
-from backend.db.mongo import ensure_indexes
+from dotenv import load_dotenv
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="InsightLoop API")
+# Load .env before anything else reads env vars.
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env", override=False)
+load_dotenv(BACKEND_DIR.parent / ".env", override=False)
 
+try:
+    from backend.db.mongo import ensure_indexes
+    from backend.api.ws import manager
+    from backend.api.routes import auth, query, sources, reports
+except ModuleNotFoundError:
+    from db.mongo import ensure_indexes
+    from api.ws import manager
+    from api.routes import auth, query, sources, reports
 
-@app.on_event("startup")
-async def _startup_indexes():
-    await ensure_indexes()
+logger = logging.getLogger(__name__)
 
-# Simple in-memory websocket manager
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
+app = FastAPI(title="InsightLoop API", version="1.0.0")
 
-    async def connect(self, client_id: str, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections[client_id] = websocket
-
-    def disconnect(self, client_id: str):
-        self.active_connections.pop(client_id, None)
-
-    async def send_event(self, client_id: str, event: dict):
-        ws = self.active_connections.get(client_id)
-        if ws:
-            await ws.send_json(event)
-
-manager = ConnectionManager()
-
-# CORS
-frontend = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+# CORS — allow frontend origin
+frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend],
+    allow_origins=[frontend_url, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# JWT dependency
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret")
-JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 
-async def verify_jwt(token: str = Depends(lambda: None)):
-    # Minimal placeholder dependency. Real routes should replace this.
-    return None
+@app.on_event("startup")
+async def _startup():
+    try:
+        await ensure_indexes()
+        logger.info("MongoDB indexes ensured")
+    except Exception as exc:
+        logger.warning("Skipping Mongo index initialization: %s", exc)
 
 
+@app.on_event("shutdown")
+async def _shutdown():
+    pass
+
+
+# Health check
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+# WebSocket — streams agent events to frontend
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(client_id, websocket)
     try:
         while True:
-            # Keep alive; receive messages optionally
-            data = await websocket.receive_text()
-            # echo back for now
-            await manager.send_event(client_id, {"event": "echo", "message": data})
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(client_id)
 
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-# Mount routers (placeholder)
-from fastapi import APIRouter
-
-api_router = APIRouter()
-
-@api_router.post("/auth/login")
-async def login():
-    return {"access_token": "devtoken"}
-
-app.include_router(api_router, prefix="/api")
+# Mount all API routers
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(query.router, prefix="/api", tags=["query"])
+app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
+app.include_router(reports.router, prefix="/api/reports", tags=["reports"])

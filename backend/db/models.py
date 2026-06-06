@@ -64,6 +64,9 @@ class Query(MongoDocument):
     generated_sql: str
     result_cache: Optional[List[Dict[str, Any]]] = None
     execution_ms: Optional[int] = None
+    analysis: Optional[Dict[str, Any]] = None
+    chart_config: Optional[Dict[str, Any]] = None
+    narrative: Optional[Dict[str, Any]] = None
 
 
 class Dashboard(MongoDocument):

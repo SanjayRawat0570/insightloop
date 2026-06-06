@@ -4,21 +4,40 @@ from typing import TypedDict, List, Dict, Any
 import os
 from datetime import datetime
 
-from backend.api.ws import manager
-from backend.agents.query_writer import generate_sql, QueryWriterError
-from backend.agents.analyst import analyze
-from backend.agents.chart_selector import select_chart
-from backend.agents.narrative import write_narrative
-from backend.agents.compiler import compile_report
-from backend.db.executor import run_sql_on_url
-from backend.db.models import DataSource, Query, AgentRun, SourceType
-from backend.db.mongo import (
-    create_query,
-    create_agent_run,
-    get_data_source,
-    update_query,
-)
-from backend.utils.crypto import decrypt_connection_config, build_connection_url
+try:
+    from backend.api.ws import manager
+    from backend.agents.query_writer import generate_sql, QueryWriterError
+    from backend.agents.analyst import analyze
+    from backend.agents.chart_selector import select_chart
+    from backend.agents.narrative import write_narrative
+    from backend.agents.compiler import compile_report
+    from backend.db.executor import run_sql_on_url
+    from backend.db.models import DataSource, Query, AgentRun, SourceType
+    from backend.db.mongo import (
+        create_query,
+        create_agent_run,
+        get_data_source,
+        update_query,
+    )
+    from backend.utils.crypto import decrypt_connection_config, build_connection_url
+    from backend.utils.schema_parser import parse_schema_from_connection_async, schema_to_prompt
+except ModuleNotFoundError:
+    from api.ws import manager
+    from agents.query_writer import generate_sql, QueryWriterError
+    from agents.analyst import analyze
+    from agents.chart_selector import select_chart
+    from agents.narrative import write_narrative
+    from agents.compiler import compile_report
+    from db.executor import run_sql_on_url
+    from db.models import DataSource, Query, AgentRun, SourceType
+    from db.mongo import (
+        create_query,
+        create_agent_run,
+        get_data_source,
+        update_query,
+    )
+    from utils.crypto import decrypt_connection_config, build_connection_url
+    from utils.schema_parser import parse_schema_from_connection_async, schema_to_prompt
 
 
 class InsightState(TypedDict, total=False):
@@ -68,9 +87,57 @@ async def _persist_agent_run(query_id: str | None, agent_name: str, input_data: 
     )
 
 
+async def _resolve_source(state: InsightState):
+    """Resolve the data source into (db_url, dialect, schema_text).
+
+    Performs the ownership check and introspects the schema so the Query Writer
+    has real tables/columns to work with. Raises RuntimeError on failure.
+    """
+    db_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
+    dialect = state.get("dialect") or "postgres"
+    schema_text = state.get("schema") or ""
+
+    source_id = state.get("source_id")
+    cfg: dict = {}
+    if source_id:
+        ds = await get_data_source(source_id)
+        if ds:
+            current_user_id = _current_user_id(state)
+            if not current_user_id or str(ds.user_id) != str(current_user_id):
+                raise PermissionError("unauthorized: data source does not belong to current user")
+            dialect = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
+            cfg = decrypt_connection_config(ds.connection_config or {})
+            db_url = cfg.get("connection_url") or build_connection_url(cfg, dialect) or db_url
+
+    if not db_url:
+        raise RuntimeError("No source database available. Configure the data source connection.")
+
+    # Introspect schema for the Query Writer prompt (best-effort).
+    if not schema_text:
+        try:
+            schema = await parse_schema_from_connection_async({**cfg, "connection_url": db_url, "dialect": dialect})
+            schema_text = schema_to_prompt(schema)
+        except Exception:
+            schema_text = ""
+
+    return db_url, dialect, schema_text
+
+
 async def run_pipeline(state: InsightState, client_id: str, query_id: str | None = None):
     try:
         state["query_id"] = query_id or state.get("query_id") or None
+
+        # 0. Resolve data source + introspect schema (ownership enforced here).
+        try:
+            db_url, dialect, schema_text = await _resolve_source(state)
+            state["_db_url"] = db_url
+            state["dialect"] = dialect
+            state["schema"] = schema_text
+        except Exception as e:
+            state["error"] = str(e)
+            await _send_node_event(client_id, "node_error", "query_writer", {"error": str(e)})
+            await _send_node_event(client_id, "pipeline_error", "", {"error": str(e)})
+            return
 
         # 1. Query writer
         state["current_node"] = "query_writer"
@@ -113,22 +180,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         state["current_node"] = "sql_executor"
         await _send_node_event(client_id, "node_start", "sql_executor")
         try:
-            db_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
-            source_id = state.get("source_id")
-            if source_id:
-                ds = await get_data_source(source_id)
-                if ds:
-                    current_user_id = _current_user_id(state)
-                    if not current_user_id or str(ds.user_id) != str(current_user_id):
-                        err = "unauthorized: data source does not belong to current user"
-                        state["error"] = err
-                        await _send_node_event(client_id, "node_error", "sql_executor", {"error": err})
-                        await _send_node_event(client_id, "pipeline_error", "", {"error": err})
-                        return
-
-                    cfg = decrypt_connection_config(ds.connection_config or {})
-                    db_url = cfg.get("connection_url") or build_connection_url(cfg, state.get("dialect") or "postgres") or db_url
-
+            db_url = state.get("_db_url") or os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
             if not db_url:
                 raise RuntimeError("No source database URL available. Set SOURCE_DB_URL or configure the datasource connection.")
 
@@ -259,7 +311,33 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
             await _send_node_event(client_id, "pipeline_error", "", {"error": str(e)})
             return
 
-        await _send_node_event(client_id, "pipeline_complete", "", {"report": state.get("report")})
+        # Build a frontend-renderable result object (QueryResult shape).
+        result = {
+            "id": state.get("query_id"),
+            "natural_language": state.get("question"),
+            "generated_sql": state.get("sql"),
+            "result_cache": state.get("sql_result") or [],
+            "execution_ms": state.get("execution_ms"),
+            "analysis": state.get("analysis"),
+            "chart_config": state.get("chart_config"),
+            "narrative": state.get("narrative"),
+            "report": state.get("report"),
+        }
+
+        # Persist the analysis/chart/narrative onto the stored query for history reloads.
+        try:
+            await update_query(
+                state["query_id"],
+                {
+                    "analysis": state.get("analysis"),
+                    "chart_config": state.get("chart_config"),
+                    "narrative": state.get("narrative"),
+                },
+            )
+        except Exception:
+            pass
+
+        await _send_node_event(client_id, "pipeline_complete", "", {"result": result, "report": state.get("report")})
 
     except Exception as e:
         await _send_node_event(client_id, "pipeline_error", "", {"error": str(e)})

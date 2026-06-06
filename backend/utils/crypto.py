@@ -1,6 +1,23 @@
+import json
 import os
 from typing import Dict, Any
 from cryptography.fernet import Fernet, InvalidToken
+
+
+def _get_fernet() -> Fernet | None:
+    key = os.environ.get("FERNET_KEY")
+    if not key:
+        return None
+    return Fernet(key.encode() if isinstance(key, str) else key)
+
+
+def encrypt_connection_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Encrypt connection config dict. Returns original dict if FERNET_KEY not set."""
+    f = _get_fernet()
+    if not f:
+        return config
+    payload = f.encrypt(json.dumps(config).encode()).decode()
+    return {"encrypted_payload": payload}
 
 
 def decrypt_connection_config(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -21,11 +38,8 @@ def decrypt_connection_config(config: Dict[str, Any]) -> Dict[str, Any]:
         return config
 
     try:
-        f = Fernet(key.encode())
+        f = Fernet(key.encode() if isinstance(key, str) else key)
         decrypted = f.decrypt(payload.encode())
-        # decrypted is bytes; attempt to parse JSON
-        import json
-
         return json.loads(decrypted)
     except (InvalidToken, ValueError):
         return config

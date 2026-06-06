@@ -8,28 +8,38 @@ Folders:
 
 See `backend/requirements.txt` and `frontend/package.json` for dependencies.
 
-Quick start (dev):
+Quick start (dev, no Docker):
 
-1. Create a Python virtualenv and install backend dependencies:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt
-```
-
-2. Start backend:
+1. Backend setup (from `backend/`):
 
 ```powershell
-uvicorn backend.api.main:app --reload --host 0.0.0.0 --port 8000
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-3. Start frontend:
+2. Start backend (from `backend/`):
 
-```bash
+```powershell
+.\start.ps1
+```
+
+3. Frontend setup and start (from `frontend/`):
+
+```powershell
 cd frontend
-pnpm install
-pnpm dev
+npm install
+.\start.ps1
 ```
 
-Docker compose is provided for a full-stack dev environment.
+4. Verify:
+
+```powershell
+curl http://localhost:8000/health
+curl http://localhost:3000
+```
+
+Notes:
+- `backend/.env` is read by `backend/start.ps1` if present.
+- If MongoDB is unavailable during startup, the API logs a warning and still boots for local development.

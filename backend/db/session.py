@@ -1,4 +1,7 @@
-from backend.db.mongo import get_mongo_db
+try:
+    from backend.db.mongo import get_mongo_db
+except ModuleNotFoundError:
+    from db.mongo import get_mongo_db
 
 
 async def get_async_session():

@@ -12,8 +12,12 @@ import uuid
 from jose import jwt
 from httpx import AsyncClient
 
-from backend.db.models import User, DataSource, SourceType
-from backend.db.mongo import create_user, create_data_source
+try:
+    from backend.db.models import User, DataSource, SourceType
+    from backend.db.mongo import create_user, create_data_source
+except ModuleNotFoundError:
+    from db.models import User, DataSource, SourceType
+    from db.mongo import create_user, create_data_source
 
 
 async def ensure_test_data():

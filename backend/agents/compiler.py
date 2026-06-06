@@ -1,17 +1,33 @@
-from pydantic import BaseModel
-from typing import List, Dict, Any
+"""Compiler agent: assembles the final report JSON.
+
+Writes a 2-sentence executive summary across all sections (via Claude when
+available) and structures the report. PDF generation is handled separately.
+"""
+from __future__ import annotations
+
+import json
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+try:
+    from backend.agents.llm import call_text
+except ModuleNotFoundError:
+    from agents.llm import call_text
+
 
 class InsightState(BaseModel):
     question: str
-    source_id: str
-    schema: str | None = None
-    dialect: str | None = None
-    sql: str | None = None
-    sql_result: List[Dict[str, Any]] | None = None
-    analysis: Dict[str, Any] | None = None
-    chart_config: Dict[str, Any] | None = None
-    narrative: Dict[str, Any] | None = None
+    source_id: Optional[str] = None
+    schema: Optional[str] = None
+    dialect: Optional[str] = None
+    sql: Optional[str] = None
+    sql_result: Optional[List[Dict[str, Any]]] = None
+    analysis: Optional[Dict[str, Any]] = None
+    chart_config: Optional[Dict[str, Any]] = None
+    narrative: Optional[Dict[str, Any]] = None
+
 
 class ReportSection(BaseModel):
     title: str
@@ -20,17 +36,53 @@ class ReportSection(BaseModel):
     data_table: List[Dict[str, Any]]
     sql_used: str
 
+
 class Report(BaseModel):
     title: str
-    generated_at: datetime
+    generated_at: str
     executive_summary: str
     sections: List[ReportSection]
 
 
+SYSTEM_PROMPT = """You write executive summaries for BI reports. Given the question and the key findings, write exactly two sentences summarizing the takeaways for a busy executive. Direct, no jargon. Return ONLY the two sentences, no preamble."""
+
+
+def _exec_summary(state: InsightState) -> str:
+    narrative = state.narrative or {}
+    analysis = state.analysis or {}
+    user = (
+        f"Question: {state.question}\n"
+        f"Headline: {narrative.get('headline', '')}\n"
+        f"Summary: {analysis.get('summary', '')}\n"
+        f"Recommendation: {narrative.get('recommendation', '')}"
+    )
+    text = call_text(SYSTEM_PROMPT, user, temperature=0.3, max_tokens=200)
+    if text:
+        return text.strip()
+    # Fallback: stitch headline + recommendation.
+    head = narrative.get("headline", "Report generated.")
+    rec = narrative.get("recommendation", "")
+    return f"{head}. {rec}".strip()
+
+
 def compile_report(state: Dict[str, Any]) -> Dict[str, Any]:
-    s = InsightState(**state)
-    sections = []
+    s = InsightState(**{k: state.get(k) for k in InsightState.model_fields})
+    sections: List[ReportSection] = []
     if s.chart_config and s.narrative:
-        sections.append(ReportSection(title=s.question or "Section", chart_config=s.chart_config, narrative=s.narrative, data_table=s.sql_result or [], sql_used=s.sql or "").dict())
-    report = Report(title=s.question or "Report", generated_at=datetime.utcnow(), executive_summary=(s.narrative or {}).get('headline',''), sections=sections)
-    return report.dict()
+        sections.append(
+            ReportSection(
+                title=s.question or "Section",
+                chart_config=s.chart_config,
+                narrative=s.narrative,
+                data_table=(s.sql_result or [])[:50],
+                sql_used=s.sql or "",
+            )
+        )
+
+    report = Report(
+        title=s.question or "InsightLoop Report",
+        generated_at=datetime.utcnow().isoformat() + "Z",
+        executive_summary=_exec_summary(s),
+        sections=sections,
+    )
+    return report.model_dump()

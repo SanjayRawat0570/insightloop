@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from dotenv import load_dotenv
 
-from backend.db.models import AgentRun, DataSource, Query, Report, User
+try:
+    from backend.db.models import AgentRun, DataSource, Query, Report, User
+except ModuleNotFoundError:
+    from db.models import AgentRun, DataSource, Query, Report, User
 
-MONGODB_URL = os.environ.get("MONGODB_URL", "mongodb://mongo:27017")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env", override=False)
+load_dotenv(BACKEND_DIR.parent / ".env", override=False)
+
+MONGODB_URL = os.environ.get("MONGODB_URL") or os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 MONGODB_DB = os.environ.get("MONGODB_DB", "insightloop")
 
 _client: AsyncIOMotorClient | None = None

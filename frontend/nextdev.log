@@ -1,0 +1,18 @@
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+RangeError: Array buffer allocation failed
+    at new ArrayBuffer (<anonymous>)
+    at new Uint8Array (<anonymous>)
+    at new FastBuffer (node:internal/buffer:968:5)
+    at createUnsafeBuffer (node:internal/buffer:1114:12)
+    at allocate (node:buffer:445:10)
+    at Buffer.allocUnsafe (node:buffer:410:10)
+    at Gunzip.ZlibBase (node:zlib:261:28)
+    at Gunzip.Zlib (node:zlib:672:3)
+    at new Gunzip (node:zlib:742:3)
+    at value (node:zlib:930:14)
+ ✓ Ready in 3.3s
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: RangeError: Array buffer allocation failed

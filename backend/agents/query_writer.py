@@ -1,44 +1,146 @@
-from pydantic import BaseModel, ValidationError
-from typing import Dict, Any
+"""Query Writer agent: natural language -> SQL using Claude.
+
+Falls back to a schema-aware heuristic when no LLM is available so the pipeline
+still runs end-to-end.
+"""
+from __future__ import annotations
+
 import re
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+try:
+    from backend.agents.llm import call_text
+except ModuleNotFoundError:
+    from agents.llm import call_text
+
 
 class QueryWriterError(Exception):
     pass
 
+
 class QueryRequest(BaseModel):
     question: str
-    schema: str
+    schema: str = ""
     dialect: str = "postgres"
+
 
 class QueryResponse(BaseModel):
     sql: str
-    explanation: str | None = None
+    explanation: Optional[str] = None
 
-SYSTEM_PROMPT = """
-You are an expert SQL engineer. Always use table aliases, never use SELECT *, add LIMIT 1000, and return ONLY the SQL.
+
+SYSTEM_PROMPT = """You are an expert SQL engineer. Convert the user's question into a single, correct, read-only SQL SELECT query.
+
+Rules:
+- Target dialect: {dialect}. Use only syntax valid for that dialect.
+- ALWAYS use short table aliases (e.g. FROM orders o).
+- NEVER use SELECT * — always list explicit columns.
+- Add LIMIT 1000 to prevent runaway queries (unless an aggregate returns a single row).
+- Use aggregations, JOINs, date functions and window functions where appropriate.
+- Only reference tables and columns that exist in the provided schema.
+- Return ONLY the SQL query. No markdown fences, no commentary, no explanation.
+
+Schema:
+{schema}
 """
 
+FEW_SHOT = """Examples:
+Q: Total revenue by month
+A: SELECT date_trunc('month', o.created_at) AS month, SUM(o.amount) AS revenue FROM orders o GROUP BY 1 ORDER BY 1 LIMIT 1000
+
+Q: Top 10 customers by number of orders
+A: SELECT c.name AS customer, COUNT(o.id) AS order_count FROM customers c JOIN orders o ON o.customer_id = c.id GROUP BY c.name ORDER BY order_count DESC LIMIT 10
+"""
+
+
+def _strip_fences(sql: str) -> str:
+    sql = sql.strip()
+    m = re.match(r"^```(?:sql)?\s*(.*?)\s*```$", sql, re.DOTALL)
+    if m:
+        sql = m.group(1).strip()
+    return sql.rstrip(";").strip()
+
+
 def validate_sql(sql: str) -> bool:
-    # Very lightweight validation
-    if not sql.strip().lower().startswith("select"):
+    low = sql.strip().lower()
+    if not low.startswith("select") and not low.startswith("with"):
         return False
-    if "select *" in sql.lower():
+    if re.search(r"select\s+\*", low):
+        return False
+    forbidden = (" insert ", " update ", " delete ", " drop ", " alter ", " truncate ", " create ")
+    padded = f" {low} "
+    if any(tok in padded for tok in forbidden):
         return False
     return True
 
 
+def _ensure_limit(sql: str) -> str:
+    if re.search(r"\blimit\b", sql, re.IGNORECASE):
+        return sql
+    return sql + " LIMIT 1000"
+
+
+def _parse_schema_tables(schema: str) -> List[Dict[str, Any]]:
+    """Parse the DDL-ish schema text produced by schema_parser.schema_to_prompt."""
+    tables: List[Dict[str, Any]] = []
+    for block in re.finditer(r"TABLE\s+(\w+)\s*\((.*?)\);", schema, re.DOTALL):
+        name = block.group(1)
+        cols = []
+        for line in block.group(2).splitlines():
+            line = line.strip().rstrip(",")
+            if not line:
+                continue
+            col = line.split()[0] if line.split() else None
+            if col:
+                cols.append(col)
+        tables.append({"name": name, "columns": cols})
+    return tables
+
+
+def _heuristic_sql(question: str, schema: str, dialect: str) -> str:
+    """Schema-aware fallback: select real columns from the most relevant table."""
+    tables = _parse_schema_tables(schema)
+    if not tables:
+        # Last resort: try to find a table name mentioned in the question.
+        m = re.search(r"\bfrom\s+(\w+)", question, re.IGNORECASE)
+        table = m.group(1) if m else None
+        if not table:
+            raise QueryWriterError(
+                "No schema available to generate SQL. Connect a source with tables and try again."
+            )
+        return f"SELECT 1 AS placeholder FROM {table} LIMIT 1000"
+
+    # Pick the table whose name best matches words in the question, else the first.
+    q_words = set(re.findall(r"\w+", question.lower()))
+    best = max(
+        tables,
+        key=lambda t: len(q_words & {t["name"].lower(), t["name"].lower().rstrip("s")}),
+    )
+    cols = best["columns"][:6] or ["*"]
+    if cols == ["*"]:
+        col_list = "1 AS placeholder"
+    else:
+        col_list = ", ".join(f"t.{c}" for c in cols)
+    return f"SELECT {col_list} FROM {best['name']} t LIMIT 1000"
+
+
 def generate_sql(payload: Dict[str, Any]) -> Dict[str, Any]:
-    req = QueryRequest(**payload)
-    # For scaffold: craft a naive SQL using schema hints (this is a placeholder but valid SQL)
-    # In real implementation, call Claude via LangChain
-    # Attempt to extract a table name from the schema string
-    m = re.search(r"from\s+(\w+)", req.question, re.IGNORECASE)
-    table = m.group(1) if m else "my_table"
-    sql = f"SELECT * FROM {table} LIMIT 1000"
-    # But we must not use SELECT *; replace with a simple column selection placeholder
-    sql = sql.replace("SELECT *", "SELECT 1 as placeholder_col")
+    req = QueryRequest(**{**payload, "schema": payload.get("schema") or ""})
 
+    system = SYSTEM_PROMPT.format(dialect=req.dialect, schema=req.schema or "(schema unavailable)")
+    user = f"{FEW_SHOT}\n\nQ: {req.question}\nA:"
+
+    raw = call_text(system, user, temperature=0.0, max_tokens=700)
+
+    if raw:
+        sql = _ensure_limit(_strip_fences(raw))
+        if validate_sql(sql):
+            return QueryResponse(sql=sql, explanation="Generated by Claude").model_dump()
+
+    # Fallback heuristic (no key, model failure, or invalid SQL).
+    sql = _ensure_limit(_heuristic_sql(req.question, req.schema, req.dialect))
     if not validate_sql(sql):
-        raise QueryWriterError("Generated SQL failed validation")
-
-    return QueryResponse(sql=sql, explanation="Generated placeholder SQL").dict()
+        raise QueryWriterError("Could not generate a valid SQL query for that question.")
+    return QueryResponse(sql=sql, explanation="Generated by heuristic fallback").model_dump()
