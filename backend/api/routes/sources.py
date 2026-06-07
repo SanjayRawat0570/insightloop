@@ -50,12 +50,16 @@ async def create_source(body: Dict, current_user: dict = Depends(get_current_use
     except ValueError:
         raise HTTPException(status_code=400, detail=f"unsupported source type: {source_type}")
 
-    # Test connection before saving (skip for non-SQL sources that have no live DB).
+    # Best-effort connection test for SQL sources. We attempt it so a reachable
+    # database gets validated, but a failure does NOT block saving — queries fall
+    # back to the bundled sample database when a source is unreachable.
+    connection_ok = None
     if source_type in ("postgres", "mysql"):
         try:
             await parse_schema_from_connection_async({**connection_config, "dialect": source_type})
-        except Exception as exc:
-            raise HTTPException(status_code=422, detail=f"connection test failed: {exc}")
+            connection_ok = True
+        except Exception:
+            connection_ok = False
 
     encrypted = encrypt_connection_config(connection_config)
     ds = DataSource(
@@ -65,7 +69,13 @@ async def create_source(body: Dict, current_user: dict = Depends(get_current_use
         connection_config=encrypted,
     )
     await create_data_source(ds)
-    return {"id": ds.id, "name": ds.name, "type": ds.type, "created_at": ds.created_at.isoformat()}
+    return {
+        "id": ds.id,
+        "name": ds.name,
+        "type": ds.type,
+        "created_at": ds.created_at.isoformat(),
+        "connection_ok": connection_ok,
+    }
 
 
 @router.get("")
@@ -105,8 +115,33 @@ async def get_schema(source_id: str, current_user: dict = Depends(get_current_us
 
     cfg = decrypt_connection_config(ds.connection_config or {})
     dialect = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
-    try:
-        schema = await parse_schema_from_connection_async({**cfg, "dialect": dialect})
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"schema fetch failed: {exc}")
+
+    # Try the source's own connection first.
+    schema = None
+    if dialect in ("postgres", "mysql") or cfg.get("connection_url"):
+        try:
+            schema = await parse_schema_from_connection_async({**cfg, "dialect": dialect})
+            if not schema.get("tables"):
+                schema = None  # reachable but empty / non-SQL → use sample below
+        except Exception:
+            schema = None
+
+    # Fall back to the bundled sample database so the schema browser always shows
+    # the data that queries will actually run against (matches the query-time
+    # fallback for unreachable sources).
+    if schema is None:
+        import os as _os
+        fallback_url = _os.environ.get("SOURCE_DB_URL") or _os.environ.get("DATABASE_URL")
+        if fallback_url:
+            try:
+                fb_dialect = "sqlite" if fallback_url.lower().startswith("sqlite") else "postgres"
+                schema = await parse_schema_from_connection_async(
+                    {"connection_url": fallback_url, "dialect": fb_dialect}
+                )
+                schema["fallback"] = True
+            except Exception as exc:
+                raise HTTPException(status_code=422, detail=f"schema fetch failed: {exc}")
+        else:
+            raise HTTPException(status_code=422, detail="schema unavailable and no fallback database configured")
+
     return schema

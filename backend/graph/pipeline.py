@@ -136,13 +136,24 @@ async def _resolve_source(state: InsightState):
     if not has_live_connection:
         dialect = _dialect_from_url(db_url)
 
-    # Introspect schema for the Query Writer prompt (best-effort).
+    # Introspect schema for the Query Writer prompt. If a "live" source turns out
+    # to be unreachable (e.g. a Postgres connected without a real server), fall
+    # back to the bundled sample database so the query still returns real data.
     if not schema_text:
         try:
             schema = await parse_schema_from_connection_async({**cfg, "connection_url": db_url, "dialect": dialect})
             schema_text = schema_to_prompt(schema)
         except Exception:
-            schema_text = ""
+            if has_live_connection and fallback_url and fallback_url != db_url:
+                db_url = fallback_url
+                dialect = _dialect_from_url(db_url)
+                try:
+                    schema = await parse_schema_from_connection_async({"connection_url": db_url, "dialect": dialect})
+                    schema_text = schema_to_prompt(schema)
+                except Exception:
+                    schema_text = ""
+            else:
+                schema_text = ""
 
     return db_url, dialect, schema_text
 

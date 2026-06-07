@@ -1,0 +1,8 @@
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\query_writer.py:23: UserWarning: Field name "schema" in "QueryRequest" shadows an attribute in parent "BaseModel"
+  class QueryRequest(BaseModel):
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\compiler.py:20: UserWarning: Field name "schema" in "InsightState" shadows an attribute in parent "BaseModel"
+  class InsightState(BaseModel):
+INFO:     Started server process [32744]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

@@ -113,7 +113,14 @@ async def main():
         rec("GET", "/api/reports/{id}", r.status_code == 200, str(r.status_code))
 
         r = await c.post(f"{API}/api/reports/{rep_id}/run", headers=H)
-        rec("POST", "/api/reports/{id}/run", r.status_code == 200, str(r.status_code))
+        run_ok = r.status_code == 200 and (r.json().get("result", {}).get("status") == "completed")
+        rec("POST", "/api/reports/{id}/run", run_ok,
+            f"{r.status_code}, {r.json().get('result', {}).get('pdf_bytes', 0)} pdf bytes")
+
+        r = await c.get(f"{API}/api/reports/{rep_id}/download")
+        pdf_ok = r.status_code == 200 and r.content[:4] == b"%PDF"
+        rec("GET", "/api/reports/{id}/download", pdf_ok,
+            f"{r.status_code}, {len(r.content)} bytes, {r.headers.get('content-type')}")
 
         r = await c.delete(f"{API}/api/reports/{rep_id}", headers=H)
         rec("DELETE", "/api/reports/{id}", r.status_code == 200, str(r.status_code))

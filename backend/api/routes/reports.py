@@ -4,17 +4,18 @@ import re
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 try:
     from backend.api.auth import get_current_user
     from backend.db.models import Report
     from backend.db.mongo import get_mongo_db
-    from backend.tasks.scheduler import run_scheduled_report
+    from backend.tasks.scheduler import run_scheduled_report, report_pdf_path
 except ModuleNotFoundError:
     from api.auth import get_current_user
     from db.models import Report
     from db.mongo import get_mongo_db
-    from tasks.scheduler import run_scheduled_report
+    from tasks.scheduler import run_scheduled_report, report_pdf_path
 
 router = APIRouter()
 
@@ -89,8 +90,26 @@ async def get_report(report_id: str, current_user: dict = Depends(get_current_us
 async def run_report(report_id: str, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("sub") or current_user.get("id")
     await _get_user_report(report_id, user_id)
-    result = run_scheduled_report(report_id)
+    result = await run_scheduled_report(report_id)
     return {"status": "triggered", "result": result}
+
+
+@router.get("/{report_id}/download")
+async def download_report(report_id: str):
+    """Serve the generated PDF.
+
+    Public by report id (an unguessable UUID) so it can be opened directly from
+    an <a href> link without an Authorization header — mirroring the presigned
+    S3 URL pattern in the original design.
+    """
+    path = report_pdf_path(report_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="report PDF not generated yet — run the report first")
+    return FileResponse(
+        str(path),
+        media_type="application/pdf",
+        filename=f"{report_id}.pdf",
+    )
 
 
 @router.delete("/{report_id}")

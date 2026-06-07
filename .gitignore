@@ -12,6 +12,9 @@ frontend/.env.development
 
 # backend env
 backend/.venv
+backend/venv/
 backend/__pycache__/
+# generated report PDFs
+backend/reports_output/
 # frontend env
 frontend/node_modules/
