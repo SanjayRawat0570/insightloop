@@ -24,3 +24,67 @@ textarea,
 select {
   font: inherit;
 }
+
+/* Refined scrollbars */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: rgb(199 210 254);
+  color: rgb(30 27 75);
+}
+
+@layer components {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-600 via-violet-600 to-fuchsia-500;
+  }
+
+  .card {
+    @apply bg-white border border-slate-200/80 rounded-2xl shadow-soft;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn text-white bg-brand-gradient shadow-glow hover:brightness-110 active:brightness-95;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .btn-danger {
+    @apply btn text-rose-600 border border-rose-200 bg-white hover:bg-rose-50;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-xs rounded-lg;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}

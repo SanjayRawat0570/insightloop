@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import AppShell, { PageHeader } from "../../components/AppShell"
 import { connectSource, deleteSource, getSchema, getSources, type DataSource } from "../../lib/api"
+import { CloseIcon, PlusIcon, TrashIcon, DatabaseIcon } from "../../components/icons"
 
 const SOURCE_TYPES = [
   { key: "postgres", label: "PostgreSQL", icon: "🐘" },
@@ -91,137 +93,161 @@ export default function ConnectPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-2">Connect a Data Source</h1>
-      <p className="text-gray-500 mb-8">Choose a source type, fill in credentials, and save.</p>
+    <AppShell>
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        <PageHeader title="Data Sources" subtitle="Connect a database or API, then ask questions about it." />
 
-      {/* Source type grid */}
-      <div className="grid grid-cols-3 gap-4 mb-8 sm:grid-cols-5">
-        {SOURCE_TYPES.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => { setSelected(s.key); setForm(EMPTY_FORM); setError(""); setSuccess("") }}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition ${
-              selected === s.key ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-400"
-            }`}
-          >
-            <span className="text-2xl">{s.icon}</span>
-            <span className="text-xs font-semibold">{s.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Connection form */}
-      {selected && (
-        <form onSubmit={handleSave} className="bg-white rounded-2xl border border-gray-200 p-6 mb-8 space-y-4">
-          <h2 className="font-semibold text-lg capitalize">{selected} Connection</h2>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Connection name</label>
-            <input required value={form.name} onChange={(e) => updateForm({ name: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="My production DB" />
+        {success && (
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 animate-fade-in">
+            {success}
           </div>
+        )}
 
-          {(selected === "postgres" || selected === "mysql") && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Host</label>
-                  <input value={form.host} onChange={(e) => updateForm({ host: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="localhost" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Port</label>
-                  <input value={form.port} onChange={(e) => updateForm({ port: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 text-sm" placeholder={selected === "postgres" ? "5432" : "3306"} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Database</label>
-                <input value={form.database} onChange={(e) => updateForm({ database: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="mydb" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Username</label>
-                  <input value={form.user} onChange={(e) => updateForm({ user: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Password</label>
-                  <input type="password" value={form.password} onChange={(e) => updateForm({ password: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 text-sm" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.ssl} onChange={(e) => updateForm({ ssl: e.target.checked })} />
-                Use SSL
-              </label>
-            </>
-          )}
+        {/* Source type grid */}
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {SOURCE_TYPES.map((s) => {
+            const active = selected === s.key
+            return (
+              <button
+                key={s.key}
+                onClick={() => { setSelected(s.key); setForm(EMPTY_FORM); setError(""); setSuccess("") }}
+                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all ${
+                  active
+                    ? "border-brand-500 bg-brand-50 shadow-soft"
+                    : "border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50"
+                }`}
+              >
+                <span className="text-3xl">{s.icon}</span>
+                <span className="text-xs font-semibold text-slate-700">{s.label}</span>
+              </button>
+            )
+          })}
+        </div>
 
-          {selected === "api" && (
+        {/* Connection form */}
+        {selected && (
+          <form onSubmit={handleSave} className="card mb-10 space-y-4 p-6 animate-fade-in-up">
+            <h2 className="text-lg font-semibold capitalize text-slate-900">{selected} connection</h2>
+
             <div>
-              <label className="block text-sm font-medium mb-1">API URL</label>
-              <input value={form.url} onChange={(e) => updateForm({ url: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="https://api.example.com/data" />
+              <label className="label">Connection name</label>
+              <input required value={form.name} onChange={(e) => updateForm({ name: e.target.value })}
+                className="input" placeholder="My production DB" />
             </div>
-          )}
 
-          {(selected === "csv" || selected === "sheets") && (
-            <p className="text-sm text-gray-500">CSV and Sheets connections require additional setup. Contact support.</p>
-          )}
+            {(selected === "postgres" || selected === "mysql") && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Host</label>
+                    <input value={form.host} onChange={(e) => updateForm({ host: e.target.value })}
+                      className="input" placeholder="localhost" />
+                  </div>
+                  <div>
+                    <label className="label">Port</label>
+                    <input value={form.port} onChange={(e) => updateForm({ port: e.target.value })}
+                      className="input" placeholder={selected === "postgres" ? "5432" : "3306"} />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Database</label>
+                  <input value={form.database} onChange={(e) => updateForm({ database: e.target.value })}
+                    className="input" placeholder="mydb" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Username</label>
+                    <input value={form.user} onChange={(e) => updateForm({ user: e.target.value })}
+                      className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Password</label>
+                    <input type="password" value={form.password} onChange={(e) => updateForm({ password: e.target.value })}
+                      className="input" />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" checked={form.ssl} onChange={(e) => updateForm({ ssl: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                  Use SSL
+                </label>
+              </>
+            )}
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-          {success && <p className="text-green-600 text-sm">{success}</p>}
-
-          <div className="flex gap-3">
-            <button type="submit" disabled={loading}
-              className="bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-gray-700 disabled:opacity-50">
-              {loading ? "Saving…" : "Save connection"}
-            </button>
-            <button type="button" onClick={() => setSelected(null)}
-              className="border border-gray-200 rounded-lg px-4 py-2 text-sm">Cancel</button>
-          </div>
-        </form>
-      )}
-
-      {/* Existing sources */}
-      <h2 className="font-semibold text-lg mb-4">Connected sources</h2>
-      {sources.length === 0 ? (
-        <p className="text-gray-400 text-sm">No sources connected yet.</p>
-      ) : (
-        <div className="space-y-3">
-          {sources.map((s) => (
-            <div key={s.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3">
+            {selected === "api" && (
               <div>
-                <span className="font-medium">{s.name}</span>
-                <span className="ml-2 text-xs bg-gray-100 rounded px-2 py-0.5">{s.type}</span>
+                <label className="label">API URL</label>
+                <input value={form.url} onChange={(e) => updateForm({ url: e.target.value })}
+                  className="input" placeholder="https://api.example.com/data" />
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleBrowseSchema(s.id)}
-                  className="text-xs border border-gray-200 rounded px-2 py-1 hover:bg-gray-50">Browse schema</button>
-                <button onClick={() => handleDelete(s.id)}
-                  className="text-xs border border-red-200 text-red-600 rounded px-2 py-1 hover:bg-red-50">Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
 
-      {/* Schema modal */}
-      {schemaData && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-lg">Schema</h3>
-              <button onClick={() => { setSchemaData(null); setSchemaSourceId(null) }}
-                className="text-gray-400 hover:text-gray-700">✕</button>
+            {(selected === "csv" || selected === "sheets") && (
+              <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                CSV and Sheets connections use the dev sample dataset in this build. Just give it a name and save.
+              </p>
+            )}
+
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+
+            <div className="flex gap-3 pt-1">
+              <button type="submit" disabled={loading} className="btn-primary">
+                {loading ? "Saving…" : "Save connection"}
+              </button>
+              <button type="button" onClick={() => setSelected(null)} className="btn-secondary">Cancel</button>
             </div>
-            <pre className="text-xs bg-gray-50 rounded-lg p-4 overflow-auto">{JSON.stringify(schemaData, null, 2)}</pre>
+          </form>
+        )}
+
+        {/* Existing sources */}
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Connected sources</h2>
+        {sources.length === 0 ? (
+          <div className="card flex flex-col items-center gap-3 p-10 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <DatabaseIcon className="h-6 w-6" />
+            </div>
+            <p className="text-sm text-slate-500">No sources connected yet.</p>
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="space-y-3">
+            {sources.map((s) => (
+              <div key={s.id} className="card flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <DatabaseIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{s.name}</p>
+                    <span className="badge bg-slate-100 text-slate-500">{s.type}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleBrowseSchema(s.id)} className="btn-secondary btn-sm">Browse schema</button>
+                  <button onClick={() => handleDelete(s.id)} className="btn-danger btn-sm">
+                    <TrashIcon className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Schema modal */}
+        {schemaData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="card w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 shadow-card animate-fade-in-up">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Schema</h3>
+                <button onClick={() => { setSchemaData(null); setSchemaSourceId(null) }}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                  <CloseIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <pre className="overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">{JSON.stringify(schemaData, null, 2)}</pre>
+            </div>
+          </div>
+        )}
+      </div>
+    </AppShell>
   )
 }

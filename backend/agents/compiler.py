@@ -12,9 +12,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 try:
-    from backend.agents.llm import call_text
+    from backend.agents.llm import call_text, fast_pipeline
 except ModuleNotFoundError:
-    from agents.llm import call_text
+    from agents.llm import call_text, fast_pipeline
 
 
 class InsightState(BaseModel):
@@ -50,6 +50,23 @@ SYSTEM_PROMPT = """You write executive summaries for BI reports. Given the quest
 def _exec_summary(state: InsightState) -> str:
     narrative = state.narrative or {}
     analysis = state.analysis or {}
+
+    # Deterministic stitch of the already-generated narrative/analysis.
+    def _stitched() -> str:
+        head = (narrative.get("headline") or "Report generated").rstrip(".")
+        summary = (analysis.get("summary") or "").strip()
+        rec = (narrative.get("recommendation") or "").strip()
+        parts = [f"{head}."]
+        if summary:
+            parts.append(summary if summary.endswith(".") else summary + ".")
+        elif rec:
+            parts.append(rec if rec.endswith(".") else rec + ".")
+        return " ".join(parts).strip()
+
+    # In fast mode, skip the LLM — the summary is derivable from prior agents.
+    if fast_pipeline():
+        return _stitched()
+
     user = (
         f"Question: {state.question}\n"
         f"Headline: {narrative.get('headline', '')}\n"
@@ -59,10 +76,7 @@ def _exec_summary(state: InsightState) -> str:
     text = call_text(SYSTEM_PROMPT, user, temperature=0.3, max_tokens=200)
     if text:
         return text.strip()
-    # Fallback: stitch headline + recommendation.
-    head = narrative.get("headline", "Report generated.")
-    rec = narrative.get("recommendation", "")
-    return f"{head}. {rec}".strip()
+    return _stitched()
 
 
 def compile_report(state: Dict[str, Any]) -> Dict[str, Any]:

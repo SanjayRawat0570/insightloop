@@ -12,6 +12,32 @@ function setToken(token: string) {
 
 function clearToken() {
   localStorage.removeItem("token")
+  localStorage.removeItem("user")
+}
+
+export interface StoredUser {
+  id: string
+  email: string
+  plan: string
+}
+
+function setUser(user: StoredUser) {
+  localStorage.setItem("user", JSON.stringify(user))
+}
+
+export function getUser(): StoredUser | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem("user")
+    return raw ? (JSON.parse(raw) as StoredUser) : null
+  } catch {
+    return null
+  }
+}
+
+/** True when an auth token is present in this browser. */
+export function isAuthenticated(): boolean {
+  return getToken() !== null
 }
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -51,6 +77,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
     body: JSON.stringify({ email, password }),
   })
   setToken(data.access_token)
+  setUser(data.user)
   return data
 }
 
@@ -60,6 +87,7 @@ export async function register(email: string, password: string): Promise<AuthRes
     body: JSON.stringify({ email, password }),
   })
   setToken(data.access_token)
+  setUser(data.user)
   return data
 }
 
@@ -131,22 +159,14 @@ export async function getQueryHistory(): Promise<{ items: QueryResult[] }> {
 }
 
 // ─── Dashboards ──────────────────────────────────────────────────────────────
+// NOTE: The backend exposes no /api/dashboards route. Dashboards are persisted
+// client-side in localStorage (see app/dashboard/page.tsx). This type is kept
+// for that local shape; add server functions here if a backend route lands.
 export interface Dashboard {
   id: string
   name: string
   layout_json: Record<string, unknown>
   created_at: string
-}
-
-export async function getDashboards(): Promise<{ items: Dashboard[] }> {
-  return apiRequest("/api/dashboards")
-}
-
-export async function saveDashboard(payload: { name: string; layout_json: Record<string, unknown>; id?: string }): Promise<Dashboard> {
-  if (payload.id) {
-    return apiRequest(`/api/dashboards/${payload.id}`, { method: "PUT", body: JSON.stringify(payload) })
-  }
-  return apiRequest("/api/dashboards", { method: "POST", body: JSON.stringify(payload) })
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────────────

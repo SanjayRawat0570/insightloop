@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TypedDict, List, Dict, Any
+import asyncio
 import os
 from datetime import datetime
 
@@ -87,18 +88,32 @@ async def _persist_agent_run(query_id: str | None, agent_name: str, input_data: 
     )
 
 
+def _dialect_from_url(url: str) -> str:
+    """Infer a SQL dialect from a SQLAlchemy URL scheme."""
+    low = (url or "").lower()
+    if low.startswith("sqlite"):
+        return "sqlite"
+    if low.startswith("mysql"):
+        return "mysql"
+    if low.startswith("postgres"):
+        return "postgres"
+    return "postgres"
+
+
 async def _resolve_source(state: InsightState):
     """Resolve the data source into (db_url, dialect, schema_text).
 
     Performs the ownership check and introspects the schema so the Query Writer
     has real tables/columns to work with. Raises RuntimeError on failure.
     """
-    db_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
+    fallback_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
+    db_url = fallback_url
     dialect = state.get("dialect") or "postgres"
     schema_text = state.get("schema") or ""
 
     source_id = state.get("source_id")
     cfg: dict = {}
+    has_live_connection = False
     if source_id:
         ds = await get_data_source(source_id)
         if ds:
@@ -107,10 +122,19 @@ async def _resolve_source(state: InsightState):
                 raise PermissionError("unauthorized: data source does not belong to current user")
             dialect = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
             cfg = decrypt_connection_config(ds.connection_config or {})
-            db_url = cfg.get("connection_url") or build_connection_url(cfg, dialect) or db_url
+            source_url = cfg.get("connection_url") or build_connection_url(cfg, dialect)
+            if source_url:
+                db_url = source_url
+                has_live_connection = True
 
     if not db_url:
         raise RuntimeError("No source database available. Configure the data source connection.")
+
+    # When the source has no live DB of its own (e.g. a csv/api source in local
+    # dev), we execute against the configured fallback database. Align the
+    # dialect with that database so introspection and SQL generation target it.
+    if not has_live_connection:
+        dialect = _dialect_from_url(db_url)
 
     # Introspect schema for the Query Writer prompt (best-effort).
     if not schema_text:
@@ -144,7 +168,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         await _send_node_event(client_id, "node_start", "query_writer")
         try:
             start = datetime.utcnow()
-            sql_resp = generate_sql({"question": state.get("question", ""), "schema": state.get("schema", ""), "dialect": state.get("dialect", "postgres")})
+            sql_resp = await asyncio.to_thread(generate_sql, {"question": state.get("question", ""), "schema": state.get("schema", ""), "dialect": state.get("dialect", "postgres")})
             duration_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
             state["sql"] = sql_resp.get("sql")
             await _send_node_event(client_id, "node_complete", "query_writer", {"sql": state["sql"]})
@@ -212,7 +236,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         await _send_node_event(client_id, "node_start", "data_analyst")
         try:
             start = datetime.utcnow()
-            analysis = analyze({"sql_result": state.get("sql_result", []), "question": state.get("question", "")})
+            analysis = await asyncio.to_thread(analyze, {"sql_result": state.get("sql_result", []), "question": state.get("question", "")})
             duration_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
             state["analysis"] = analysis
             await _send_node_event(client_id, "node_complete", "data_analyst", {"summary": analysis.get("summary")})
@@ -238,7 +262,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         await _send_node_event(client_id, "node_start", "chart_selector")
         try:
             start = datetime.utcnow()
-            chart = select_chart({"sql_result": state.get("sql_result", []), "analysis": state.get("analysis", {}), "question": state.get("question", "")})
+            chart = await asyncio.to_thread(select_chart, {"sql_result": state.get("sql_result", []), "analysis": state.get("analysis", {}), "question": state.get("question", "")})
             duration_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
             state["chart_config"] = chart
             await _send_node_event(client_id, "node_complete", "chart_selector", {"chart_type": chart.get("chart_type")})
@@ -264,7 +288,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         await _send_node_event(client_id, "node_start", "narrative")
         try:
             start = datetime.utcnow()
-            narrative = write_narrative({"analysis": state.get("analysis", {}), "chart_config": state.get("chart_config", {}), "question": state.get("question", "")})
+            narrative = await asyncio.to_thread(write_narrative, {"analysis": state.get("analysis", {}), "chart_config": state.get("chart_config", {}), "question": state.get("question", "")})
             duration_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
             state["narrative"] = narrative
             await _send_node_event(client_id, "node_complete", "narrative", {"headline": narrative.get("headline")})
@@ -290,7 +314,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
         await _send_node_event(client_id, "node_start", "compiler")
         try:
             start = datetime.utcnow()
-            report = compile_report(state)
+            report = await asyncio.to_thread(compile_report, state)
             duration_ms = int((datetime.utcnow() - start).total_seconds() * 1000)
             state["report"] = report
             await _send_node_event(client_id, "node_complete", "compiler", {"report_title": report.get("title")})

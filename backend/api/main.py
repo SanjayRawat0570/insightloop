@@ -54,7 +54,11 @@ async def _shutdown():
 # Health check
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    try:
+        from backend.agents.llm import llm_status
+    except ModuleNotFoundError:
+        from agents.llm import llm_status
+    return {"status": "ok", "llm": llm_status()}
 
 
 # WebSocket — streams agent events to frontend
@@ -73,3 +77,4 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(query.router, prefix="/api", tags=["query"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
+

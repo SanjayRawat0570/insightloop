@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { AgentEvent } from "../lib/api"
+import { SparkleIcon, CheckIcon, CloseIcon } from "./icons"
 
 const STEPS = [
   { key: "query_writer", label: "Query Writer", desc: "Generating SQL…" },
@@ -74,64 +75,96 @@ export default function AgentTrace({ clientId, events: externalEvents }: Props) 
   const stepStates = buildStepStates(events)
   const isComplete = events.some((e) => e.event === "pipeline_complete")
   const hasError = events.some((e) => e.event === "pipeline_error")
-  const completedAt = isComplete ? events.find((e) => e.event === "pipeline_complete") : null
+
+  // Elapsed time from first event to the terminal event.
+  let elapsed: string | null = null
+  if (events.length > 1) {
+    const first = Date.parse(events[0]?.timestamp ?? "")
+    const last = Date.parse(events[events.length - 1]?.timestamp ?? "")
+    if (!Number.isNaN(first) && !Number.isNaN(last) && last >= first) {
+      elapsed = `${((last - first) / 1000).toFixed(1)}s`
+    }
+  }
 
   function getStepStatus(key: string): StepStatus {
     return stepStates[key]?.status ?? "idle"
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4 text-sm">
-      <div className="space-y-2">
-        {STEPS.map((step, i) => {
-          const status = getStepStatus(step.key)
-          const preview = stepStates[step.key]?.preview
-
-          return (
-            <div key={step.key} className="flex items-start gap-3">
-              {/* Status icon */}
-              <div className="mt-0.5 shrink-0">
-                {status === "idle" && (
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-200" />
-                )}
-                {status === "active" && (
-                  <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                )}
-                {status === "complete" && (
-                  <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
-                {status === "error" && (
-                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white text-xs font-bold">✕</div>
-                )}
-              </div>
-
-              <div>
-                <p className={`font-medium leading-5 ${status === "active" ? "text-blue-700" : status === "complete" ? "text-gray-900" : "text-gray-400"}`}>
-                  {step.label}
-                </p>
-                {status === "active" && <p className="text-xs text-gray-400">{step.desc}</p>}
-                {status === "complete" && preview && <p className="text-xs text-gray-500">{preview}</p>}
-                {status === "error" && <p className="text-xs text-red-500">Failed</p>}
-              </div>
-            </div>
-          )
-        })}
+    <div className="card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <SparkleIcon className="h-4 w-4 text-brand-500" />
+          <span className="text-sm font-semibold text-slate-700">AI pipeline</span>
+        </div>
+        {isComplete ? (
+          <span className="badge bg-emerald-50 text-emerald-700">Complete{elapsed ? ` · ${elapsed}` : ""}</span>
+        ) : hasError ? (
+          <span className="badge bg-rose-50 text-rose-700">Failed</span>
+        ) : (
+          <span className="badge bg-brand-50 text-brand-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500 animate-pulse" /> Running
+          </span>
+        )}
       </div>
 
-      {isComplete && (
-        <p className="mt-3 text-xs text-green-600 font-medium border-t border-gray-100 pt-2">
-          Pipeline complete
-        </p>
-      )}
-      {hasError && !isComplete && (
-        <p className="mt-3 text-xs text-red-600 font-medium border-t border-gray-100 pt-2">
-          Pipeline failed
-        </p>
-      )}
+      {/* Steps */}
+      <div className="relative p-4">
+        {/* connecting line */}
+        <div className="absolute left-[30px] top-7 bottom-7 w-px bg-slate-100" />
+        <div className="space-y-1">
+          {STEPS.map((step) => {
+            const status = getStepStatus(step.key)
+            const preview = stepStates[step.key]?.preview
+            return (
+              <div key={step.key} className="relative flex items-start gap-3 rounded-lg px-1 py-1.5">
+                <div className="z-10 mt-0.5 shrink-0">
+                  {status === "idle" && (
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-200 bg-white" />
+                  )}
+                  {status === "active" && (
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white">
+                      <div className="h-6 w-6 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
+                    </div>
+                  )}
+                  {status === "complete" && (
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-gradient text-white shadow-sm">
+                      <CheckIcon className="h-3.5 w-3.5" strokeWidth={3} />
+                    </div>
+                  )}
+                  {status === "error" && (
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white">
+                      <CloseIcon className="h-3.5 w-3.5" strokeWidth={3} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-medium leading-6 ${
+                      status === "active"
+                        ? "text-brand-700"
+                        : status === "complete"
+                        ? "text-slate-900"
+                        : status === "error"
+                        ? "text-rose-600"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {status === "active" && <p className="text-xs text-slate-400">{step.desc}</p>}
+                  {status === "complete" && preview && (
+                    <p className="truncate text-xs text-slate-500">{preview}</p>
+                  )}
+                  {status === "error" && <p className="text-xs text-rose-500">Failed</p>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

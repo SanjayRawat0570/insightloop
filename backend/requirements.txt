@@ -16,6 +16,8 @@ supabase>=2.6
 motor>=3.6
 python-jose[cryptography]>=3.3
 passlib[bcrypt]>=1.7
+bcrypt==4.0.1  # passlib 1.7.x is incompatible with bcrypt>=4.1 (missing __about__ / 72-byte self-test)
+aiosqlite>=0.19  # async SQLite driver for local/dev data sources
 cryptography>=42
 pydantic>=2.7
 pydantic-settings>=2.3

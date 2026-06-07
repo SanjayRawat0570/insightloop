@@ -1,0 +1,22 @@
+
+<--- Last few GCs --->
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF61B96E339 node::OnFatalError+1225
+ 2: 00007FF61C5AFE37 v8::Function::NewInstance+423
+ 3: 00007FF61C3B06E7 v8::base::AddressSpaceReservation::AddressSpaceReservation+322071
+ 4: 00007FF61C34910B v8::Platform::SystemClockTimeMillis+491051
+ 5: 00007FF61C320B5E v8::Platform::SystemClockTimeMillis+325758
+ 6: 00007FF61C3B3182 v8::base::AddressSpaceReservation::AddressSpaceReservation+332978
+ 7: 00007FF61C3B2137 v8::base::AddressSpaceReservation::AddressSpaceReservation+328807
+ 8: 00007FF61C3C30A2 v8::internal::StrongRootAllocatorBase::deallocate_impl+15858
+ 9: 00007FF61C3C2BCB v8::internal::StrongRootAllocatorBase::deallocate_impl+14619
+10: 00007FF61D702B2D v8::base::UnsignedDivisionByConstant<unsigned __int64>+2791357
+11: 00007FF61C3AE1B0 v8::base::AddressSpaceReservation::AddressSpaceReservation+312544
+12: 00007FF61C3C8A3A X509_STORE_set_cleanup+5098
+13: 00007FF61C3D387D uv_timer_set_repeat+14973
+14: 00007FF61C3D82AB uv_timer_set_repeat+33963
+15: 00007FF61BF85F5B v8::String::Utf8Value::~Utf8Value+4459
+16: 000001B09FE7733A 

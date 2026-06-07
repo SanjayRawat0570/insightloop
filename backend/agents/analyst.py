@@ -12,9 +12,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 try:
-    from backend.agents.llm import call_json
+    from backend.agents.llm import call_json, fast_pipeline
 except ModuleNotFoundError:
-    from agents.llm import call_json
+    from agents.llm import call_json, fast_pipeline
 
 
 class AnalystInput(BaseModel):
@@ -29,6 +29,8 @@ class AnalystOutput(BaseModel):
     key_metric: str
     key_value: Any = None
     pct_change: Optional[float] = None
+    top_label: Optional[str] = None
+    top_share: Optional[float] = None
 
 
 def _numeric_fields(rows: List[Dict[str, Any]]) -> List[str]:
@@ -62,30 +64,75 @@ Return ONLY a JSON object with exactly these keys:
 No markdown, no commentary — JSON only."""
 
 
+def _fmt(v: Any) -> str:
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return f"{v:,}"
+    return str(v)
+
+
 def _heuristic(inp: AnalystInput) -> Dict[str, Any]:
     rows = inp.sql_result
     if not rows:
         return AnalystOutput(trend="no_data", anomalies=[], summary="No data returned for this question.", key_metric="", key_value=None).model_dump()
+
+    cols = list(rows[0].keys())
     num_fields = _numeric_fields(rows)
+    cat_fields = [c for c in cols if c not in num_fields]
+    n = len(rows)
+
     if not num_fields:
-        return AnalystOutput(trend="stable", anomalies=[], summary=f"{len(rows)} rows returned.", key_metric="", key_value=len(rows)).model_dump()
+        return AnalystOutput(
+            trend="stable", anomalies=[],
+            summary=f"{n} {'row' if n == 1 else 'rows'} returned with no numeric column to analyze.",
+            key_metric=cols[0] if cols else "", key_value=n,
+        ).model_dump()
+
     key = num_fields[0]
-    total = sum(r.get(key, 0) for r in rows)
+    metric = key.replace("_", " ")
+    total = sum((r.get(key) or 0) for r in rows)
     anomalies = detect_outliers(rows, key)
+
+    # Top contributor (when there's a category/label column).
+    top_label = top_value = top_share = None
+    label_col = cat_fields[0] if cat_fields else None
+    if label_col:
+        top_row = max(rows, key=lambda r: r.get(key) or 0)
+        top_label = str(top_row.get(label_col))
+        top_value = top_row.get(key)
+        if total:
+            top_share = round((top_value / total) * 100, 1)
+
+    # Percent change across the ordered series (time-ish data).
+    series = [r.get(key) for r in rows if isinstance(r.get(key), (int, float)) and not isinstance(r.get(key), bool)]
     pct = None
-    series = [r.get(key) for r in rows if isinstance(r.get(key), (int, float))]
     if len(series) >= 2 and series[0]:
         pct = round((series[-1] - series[0]) / abs(series[0]) * 100, 1)
     trend = "stable"
     if pct is not None:
         trend = "rising" if pct > 1 else "falling" if pct < -1 else "stable"
+
+    # Natural-language summary.
+    if n == 1:
+        summary = f"{metric.capitalize()} is {_fmt(total)}."
+    elif top_label is not None and top_share is not None:
+        summary = (
+            f"{metric.capitalize()} sums to {_fmt(total)} across {n} {label_col.replace('_', ' ')}s; "
+            f"{top_label} leads at {_fmt(top_value)} ({top_share:.0f}%)."
+        )
+    else:
+        summary = f"{metric.capitalize()} sums to {_fmt(total)} across {n} rows."
+
     return AnalystOutput(
         trend=trend,
         anomalies=anomalies,
-        summary=f"{key} totals {total:,} across {len(rows)} rows.",
+        summary=summary,
         key_metric=key,
         key_value=total,
         pct_change=pct,
+        top_label=top_label,
+        top_share=top_share,
     ).model_dump()
 
 
@@ -96,13 +143,18 @@ def analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not rows:
         return _heuristic(inp)
 
+    # Fast mode: the heuristic computes real statistics (totals, % change,
+    # std-dev outliers) deterministically — accurate and instant.
+    if fast_pipeline():
+        return _heuristic(inp)
+
     # Cap rows sent to the model to keep token usage reasonable.
     sample = rows[:100]
     user = (
         f"Question: {inp.question}\n\n"
         f"Result rows ({len(rows)} total, showing up to 100):\n{json.dumps(sample, default=str)}"
     )
-    data = call_json(SYSTEM_PROMPT, user, temperature=0.0, max_tokens=600)
+    data = call_json(SYSTEM_PROMPT, user, temperature=0.0, max_tokens=350)
     if data is not None:
         try:
             return AnalystOutput(**data).model_dump()

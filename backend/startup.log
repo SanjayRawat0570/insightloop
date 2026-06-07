@@ -1,0 +1,87 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\ftt\\Desktop\\loop\\insightloop\\backend']
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\query_writer.py:23: UserWarning: Field name "schema" in "QueryRequest" shadows an attribute in parent "BaseModel"
+  class QueryRequest(BaseModel):
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\compiler.py:20: UserWarning: Field name "schema" in "InsightState" shadows an attribute in parent "BaseModel"
+  class InsightState(BaseModel):
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [16740] using WatchFiles
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\query_writer.py:23: UserWarning: Field name "schema" in "QueryRequest" shadows an attribute in parent "BaseModel"
+  class QueryRequest(BaseModel):
+C:\Users\ftt\Desktop\loop\insightloop\backend\agents\compiler.py:20: UserWarning: Field name "schema" in "InsightState" shadows an attribute in parent "BaseModel"
+  class InsightState(BaseModel):
+INFO:     Started server process [28848]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:55248 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/auth/register HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:55256 - "POST /api/auth/register HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55256 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55256 - "GET /api/sources HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55256 - "POST /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/sources HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55256 - "GET /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/sources/11ca00ef-e855-4f4e-ae5d-c9435b1209de/schema HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/query HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55256 - "GET /api/query/50c11e23-bbb8-4681-a6ea-0956e42fd734 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55256 - "GET /api/query/50c11e23-bbb8-4681-a6ea-0956e42fd734 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "GET /api/query/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/reports HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55256 - "GET /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "GET /api/reports/3daf893c-d856-4129-9471-000d8d062f51 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "POST /api/reports/3daf893c-d856-4129-9471-000d8d062f51/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "DELETE /api/reports/3daf893c-d856-4129-9471-000d8d062f51 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55256 - "DELETE /api/sources/11ca00ef-e855-4f4e-ae5d-c9435b1209de HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'scripts\api_check_all.py'. Reloading...
+ INFO:     127.0.0.1:52369 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52369 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52369 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52369 - "POST /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52369 - "GET /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52369 - "POST /api/sources/64dba004-d046-4724-90eb-b9730118b478/schema HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52379 - "WebSocket /ws/chk-d62677" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:52369 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:52389 - "GET /api/query/05b79d33-bb00-49c4-967a-b79152e4c84e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "GET /api/query/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "POST /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "GET /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "GET /api/reports/8242c494-3c29-44f2-9291-d3bef4584401 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "POST /api/reports/8242c494-3c29-44f2-9291-d3bef4584401/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "DELETE /api/reports/8242c494-3c29-44f2-9291-d3bef4584401 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52389 - "DELETE /api/sources/64dba004-d046-4724-90eb-b9730118b478 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53005 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53018 - "WebSocket /ws/cc-3471d5" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:53020 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:53020 - "GET /api/query/060b4343-4daf-476f-89aa-910d6f542cc3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64455 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/auth/register HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:64497 - "POST /api/auth/register HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:64497 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64497 - "GET /api/sources HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64497 - "POST /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/sources HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:64497 - "GET /api/sources HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/sources/6e547bbc-a4fc-46b6-9411-1a9d3d83660a/schema HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/query HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:64497 - "GET /api/query/7187a4bc-2ad4-4c43-ae1e-d0ae46a023f7 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64497 - "GET /api/query/7187a4bc-2ad4-4c43-ae1e-d0ae46a023f7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "GET /api/query/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/reports HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:64497 - "GET /api/reports HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "GET /api/reports/7b18df38-f839-4deb-8ad0-830817ce2cca HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "POST /api/reports/7b18df38-f839-4deb-8ad0-830817ce2cca/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "DELETE /api/reports/7b18df38-f839-4deb-8ad0-830817ce2cca HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64497 - "DELETE /api/sources/6e547bbc-a4fc-46b6-9411-1a9d3d83660a HTTP/1.1" 200 OK

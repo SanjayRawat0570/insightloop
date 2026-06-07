@@ -1,0 +1,220 @@
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 7.2s (463 modules)
+ GET /login 200 in 1218ms
+ ✓ Compiled / in 307ms (471 modules)
+ GET / 200 in 435ms
+ GET /login 200 in 72ms
+ ○ Compiling /chat ...
+ ✓ Compiled /chat in 5.1s (1525 modules)
+ GET /chat 200 in 5331ms
+ ✓ Compiled /connect in 294ms (1531 modules)
+ GET /connect 200 in 346ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 564ms (1537 modules)
+ GET /dashboard 200 in 871ms
+ ○ Compiling /reports ...
+ ✓ Compiled /reports in 674ms (1545 modules)
+ GET /reports 200 in 758ms
+ ✓ Compiled in 2.7s (782 modules)
+ ✓ Compiled in 561ms (782 modules)
+ ✓ Compiled in 457ms (782 modules)
+ ✓ Compiled in 559ms (782 modules)
+ ✓ Compiled in 430ms (782 modules)
+ ✓ Compiled in 357ms (782 modules)
+ ✓ Compiled in 428ms (782 modules)
+ ✓ Compiled in 260ms (782 modules)
+ ✓ Compiled in 200ms (782 modules)
+ ✓ Compiled in 356ms (782 modules)
+ ✓ Compiled in 256ms (782 modules)
+ ✓ Compiled in 273ms (782 modules)
+ ✓ Compiled in 161ms (782 modules)
+ ✓ Compiled in 451ms (782 modules)
+ ✓ Compiled in 351ms (782 modules)
+ ✓ Compiled in 351ms (782 modules)
+ ⨯ ./app/chat/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\chat\page.tsx[0m:20:1]
+ [2m20[0m |   }, [])
+ [2m21[0m | 
+ [2m22[0m |   return (
+ [2m23[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m24[0m |     <div className="flex h-screen overflow-hidden bg-gray-50">
+ [2m25[0m |       {/* Sidebar */}
+ [2m26[0m |       <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/chat/page.tsx
+ ⨯ ./app/chat/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\chat\page.tsx[0m:20:1]
+ [2m20[0m |   }, [])
+ [2m21[0m | 
+ [2m22[0m |   return (
+ [2m23[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m24[0m |     <div className="flex h-screen overflow-hidden bg-gray-50">
+ [2m25[0m |       {/* Sidebar */}
+ [2m26[0m |       <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/chat/page.tsx
+ ⨯ ./app/chat/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\chat\page.tsx[0m:20:1]
+ [2m20[0m |   }, [])
+ [2m21[0m | 
+ [2m22[0m |   return (
+ [2m23[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m24[0m |     <div className="flex h-screen overflow-hidden bg-gray-50">
+ [2m25[0m |       {/* Sidebar */}
+ [2m26[0m |       <aside className="w-64 border-r border-gray-200 bg-white flex flex-col">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/chat/page.tsx
+ ✓ Compiled in 573ms (783 modules)
+ ✓ Compiled in 175ms (783 modules)
+ ✓ Compiled in 296ms (783 modules)
+ ✓ Compiled in 196ms (783 modules)
+ ✓ Compiled in 513ms (783 modules)
+ ⨯ ./app/dashboard/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\dashboard\page.tsx[0m:35:1]
+ [2m35[0m |   }
+ [2m36[0m | 
+ [2m37[0m |   return (
+ [2m38[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m39[0m |     <div className="min-h-screen bg-gray-50">
+ [2m40[0m |       {/* Top bar */}
+ [2m41[0m |       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/dashboard/page.tsx
+ ✓ Compiled in 521ms (783 modules)
+ ✓ Compiled in 255ms (783 modules)
+ ✓ Compiled in 440ms (783 modules)
+ ✓ Compiled in 257ms (783 modules)
+ ✓ Compiled in 585ms (783 modules)
+ ⨯ ./app/connect/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\connect\page.tsx[0m:93:1]
+ [2m93[0m |   }
+ [2m94[0m | 
+ [2m95[0m |   return (
+ [2m96[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m97[0m |     <NavBar />
+ [2m98[0m |     <div className="max-w-4xl mx-auto py-10 px-4">
+ [2m99[0m |       <h1 className="text-3xl font-bold mb-2">Connect a Data Source</h1>
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/connect/page.tsx
+ ⨯ ./app/connect/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\connect\page.tsx[0m:93:1]
+ [2m93[0m |   }
+ [2m94[0m | 
+ [2m95[0m |   return (
+ [2m96[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m97[0m |     <NavBar />
+ [2m98[0m |     <div className="max-w-4xl mx-auto py-10 px-4">
+ [2m99[0m |       <h1 className="text-3xl font-bold mb-2">Connect a Data Source</h1>
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/connect/page.tsx
+ ✓ Compiled in 385ms (784 modules)
+ ✓ Compiled in 238ms (784 modules)
+ ✓ Compiled in 254ms (784 modules)
+ ✓ Compiled in 526ms (784 modules)
+ ⨯ ./app/reports/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\reports\page.tsx[0m:39:1]
+ [2m39[0m |   }
+ [2m40[0m | 
+ [2m41[0m |   return (
+ [2m42[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m43[0m |     <NavBar />
+ [2m44[0m |     <div className="max-w-5xl mx-auto py-10 px-4">
+ [2m45[0m |       <div className="flex items-center justify-between mb-8">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/reports/page.tsx
+ ⨯ ./app/reports/page.tsx
+Error: 
+  [31mx[0m Unexpected token `AuthGuard`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ftt\Desktop\loop\insightloop\frontend\app\reports\page.tsx[0m:39:1]
+ [2m39[0m |   }
+ [2m40[0m | 
+ [2m41[0m |   return (
+ [2m42[0m |     <AuthGuard>
+    : [31;1m     ^^^^^^^^^[0m
+ [2m43[0m |     <NavBar />
+ [2m44[0m |     <div className="max-w-5xl mx-auto py-10 px-4">
+ [2m45[0m |       <div className="flex items-center justify-between mb-8">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/reports/page.tsx
+ ✓ Compiled in 490ms (784 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 566ms (224 modules)
+ GET / 200 in 753ms
+ ✓ Compiled /login in 81ms (228 modules)
+ GET /login 200 in 195ms
+ ✓ Compiled /chat in 200ms (765 modules)
+ GET /chat 200 in 502ms
+ ✓ Compiled /connect in 375ms (770 modules)
+ GET /connect 200 in 467ms
+ ✓ Compiled /dashboard in 204ms (774 modules)
+ GET /dashboard 200 in 633ms
+ ✓ Compiled /reports in 349ms (779 modules)
+ GET /reports 200 in 448ms
+[?25h

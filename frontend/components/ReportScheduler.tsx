@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import cronstrue from "cronstrue"
 import { createReport } from "../lib/api"
+import { CloseIcon, PlusIcon } from "./icons"
 
 interface Props {
   onClose: () => void
@@ -14,6 +16,15 @@ const SCHEDULE_OPTIONS = [
   { label: "Monthly (1st, 9am)", value: "0 9 1 * *" },
   { label: "Custom cron", value: "custom" },
 ] as const
+
+function describeCron(expr: string): string {
+  if (!expr.trim()) return ""
+  try {
+    return cronstrue.toString(expr, { use24HourTimeFormat: false })
+  } catch {
+    return "Invalid cron expression"
+  }
+}
 
 export default function ReportScheduler({ onClose, onCreated }: Props) {
   const [name, setName] = useState("")
@@ -52,102 +63,102 @@ export default function ReportScheduler({ onClose, onCreated }: Props) {
     }
   }
 
-  const selectedLabel = SCHEDULE_OPTIONS.find((o) => o.value === scheduleOption)?.label ?? scheduleOption
+  const activeCron = scheduleOption === "custom" ? customCron : scheduleOption
+  const preview = describeCron(activeCron)
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold">Schedule Report</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="card w-full max-w-md p-6 shadow-card animate-fade-in-up">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Schedule report</h2>
+          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <CloseIcon className="h-5 w-5" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium mb-1">Report name</label>
+            <label className="label">Report name</label>
             <input
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              className="input"
               placeholder="Weekly revenue summary"
             />
           </div>
 
           {/* Schedule */}
           <div>
-            <label className="block text-sm font-medium mb-1">Schedule</label>
+            <label className="label">Schedule</label>
             <div className="grid grid-cols-2 gap-2">
-              {SCHEDULE_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => setScheduleOption(o.value)}
-                  className={`text-sm border rounded-lg px-3 py-2 text-left transition ${
-                    scheduleOption === o.value ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-400"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
+              {SCHEDULE_OPTIONS.map((o) => {
+                const active = scheduleOption === o.value
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setScheduleOption(o.value)}
+                    className={`rounded-xl border-2 px-3 py-2 text-left text-sm transition ${
+                      active ? "border-brand-500 bg-brand-50 text-brand-800" : "border-slate-200 text-slate-600 hover:border-brand-300"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                )
+              })}
             </div>
             {scheduleOption === "custom" && (
-              <div className="mt-2">
-                <input
-                  value={customCron}
-                  onChange={(e) => setCustomCron(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
-                  placeholder="0 9 * * 1"
-                />
-                <p className="text-xs text-gray-400 mt-1">Standard cron expression (minute hour day month weekday)</p>
-              </div>
+              <input
+                value={customCron}
+                onChange={(e) => setCustomCron(e.target.value)}
+                className="input mt-2 font-mono"
+                placeholder="0 9 * * 1"
+              />
+            )}
+            {preview && (
+              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                🕑 {preview}
+              </p>
             )}
           </div>
 
           {/* Recipients */}
           <div>
-            <label className="block text-sm font-medium mb-1">Email recipients</label>
+            <label className="label">Email recipients</label>
             <div className="flex gap-2">
               <input
                 type="email"
                 value={recipientInput}
                 onChange={(e) => setRecipientInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRecipient() } }}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="input"
                 placeholder="user@company.com"
               />
-              <button type="button" onClick={addRecipient}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm hover:bg-gray-50">
-                Add
+              <button type="button" onClick={addRecipient} className="btn-secondary shrink-0">
+                <PlusIcon className="h-4 w-4" /> Add
               </button>
             </div>
             {recipients.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {recipients.map((r) => (
-                  <span key={r} className="inline-flex items-center gap-1 bg-gray-100 text-xs rounded-full px-2 py-1">
+                  <span key={r} className="badge bg-brand-50 text-brand-700">
                     {r}
-                    <button type="button" onClick={() => removeRecipient(r)} className="text-gray-400 hover:text-red-500">×</button>
+                    <button type="button" onClick={() => removeRecipient(r)} className="text-brand-400 hover:text-rose-500">×</button>
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {error && <p className="text-sm text-rose-600">{error}</p>}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-gray-900 text-white rounded-lg py-2 text-sm font-semibold hover:bg-gray-700 disabled:opacity-50"
-            >
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
               {loading ? "Saving…" : "Create report"}
             </button>
-            <button type="button" onClick={onClose}
-              className="flex-1 border border-gray-200 rounded-lg py-2 text-sm hover:bg-gray-50">
-              Cancel
-            </button>
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           </div>
         </form>
       </div>

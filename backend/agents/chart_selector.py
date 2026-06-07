@@ -11,9 +11,9 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, field_validator
 
 try:
-    from backend.agents.llm import call_json
+    from backend.agents.llm import call_json, fast_pipeline
 except ModuleNotFoundError:
-    from agents.llm import call_json
+    from agents.llm import call_json, fast_pipeline
 
 VALID_CHARTS = {"line", "bar", "pie", "scatter", "heatmap", "table"}
 
@@ -86,6 +86,10 @@ def select_chart(payload: Dict[str, Any]) -> Dict[str, Any]:
     req = ChartRequest(**payload)
     if not req.sql_result:
         return ChartResponse(chart_type="table", title="Empty result").model_dump()
+
+    # Chart choice is fully rule-based — skip the LLM in fast mode.
+    if fast_pipeline():
+        return _heuristic(req)
 
     cols = list(req.sql_result[0].keys())
     user = (
