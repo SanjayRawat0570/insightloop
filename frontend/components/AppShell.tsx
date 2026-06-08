@@ -59,14 +59,17 @@ export default function AppShell({ children, scroll = true }: Props) {
   const initial = (email?.[0] ?? "U").toUpperCase()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden app-backdrop">
       {/* Icon rail */}
-      <aside className="w-[84px] shrink-0 flex flex-col items-center gap-1 bg-gradient-to-b from-slate-900 via-brand-950 to-slate-900 py-4 text-slate-400">
-        <a href="/chat" className="mb-3" title="InsightLoop">
+      <aside className="relative w-[84px] shrink-0 flex flex-col items-center gap-1 bg-gradient-to-b from-slate-900 via-brand-950 to-slate-900 py-4 text-slate-400 shadow-xl">
+        {/* faint glow at the top of the rail */}
+        <div className="pointer-events-none absolute -top-10 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-brand-500/20 blur-2xl" />
+
+        <a href="/chat" className="relative mb-3 transition-transform duration-200 hover:scale-110 active:scale-95" title="InsightLoop">
           <BrandMark className="h-11 w-11" />
         </a>
 
-        <nav className="flex flex-1 flex-col items-center gap-1.5 w-full px-2">
+        <nav className="relative flex flex-1 flex-col items-center gap-1.5 w-full px-2">
           {NAV.map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/")
             return (
@@ -74,35 +77,37 @@ export default function AppShell({ children, scroll = true }: Props) {
                 key={href}
                 href={href}
                 title={label}
-                className={`group relative flex w-full flex-col items-center gap-1 rounded-xl py-2.5 transition-all ${
+                className={`group relative flex w-full flex-col items-center gap-1 rounded-xl py-2.5 transition-all duration-200 ${
                   active
-                    ? "bg-white/10 text-white"
-                    : "hover:bg-white/5 hover:text-slate-200"
+                    ? "bg-white/10 text-white shadow-inner"
+                    : "hover:bg-white/5 hover:text-slate-100"
                 }`}
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-7 -translate-y-1/2 w-1 rounded-r-full bg-brand-gradient" />
-                )}
-                <Icon className="h-[22px] w-[22px]" />
+                <span
+                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-brand-gradient transition-all duration-300 ${
+                    active ? "h-7 opacity-100" : "h-0 opacity-0"
+                  }`}
+                />
+                <Icon className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-110 group-active:scale-95" />
                 <span className="text-[10px] font-medium tracking-wide">{label}</span>
               </a>
             )
           })}
         </nav>
 
-        <div className="flex flex-col items-center gap-3 w-full px-2">
+        <div className="relative flex flex-col items-center gap-3 w-full px-2">
           <div
             title={email ?? "Account"}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-gradient text-sm font-semibold text-white shadow-glow"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-gradient text-sm font-semibold text-white shadow-glow ring-2 ring-white/10 transition-transform duration-200 hover:scale-110"
           >
             {initial}
           </div>
           <button
             onClick={() => logout()}
             title="Log out"
-            className="flex w-full flex-col items-center gap-1 rounded-xl py-2 text-slate-400 transition hover:bg-white/5 hover:text-rose-300"
+            className="group flex w-full flex-col items-center gap-1 rounded-xl py-2 text-slate-400 transition-all duration-200 hover:bg-white/5 hover:text-rose-300"
           >
-            <LogoutIcon className="h-[22px] w-[22px]" />
+            <LogoutIcon className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-110 group-hover:-translate-x-0.5" />
             <span className="text-[10px] font-medium">Logout</span>
           </button>
         </div>
@@ -127,7 +132,7 @@ export function PageHeader({
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <div className="flex flex-wrap items-end justify-between gap-4 mb-8 animate-fade-in-up">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
         {subtitle && <p className="text-slate-500 mt-1.5">{subtitle}</p>}

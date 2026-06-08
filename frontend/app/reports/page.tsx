@@ -52,8 +52,8 @@ export default function ReportsPage() {
         />
 
         {reports.length === 0 ? (
-          <div className="card flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+          <div className="card flex flex-col items-center justify-center gap-3 py-24 text-center animate-fade-in-up">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 animate-float">
               <ReportIcon className="h-7 w-7" />
             </div>
             <p className="text-lg font-semibold text-slate-900">No reports yet</p>
@@ -75,8 +75,12 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {reports.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50/60">
+                {reports.map((r, i) => (
+                  <tr
+                    key={r.id}
+                    style={{ animationDelay: `${i * 50}ms` }}
+                    className="border-b border-slate-50 transition-colors last:border-0 hover:bg-brand-50/40 animate-fade-in"
+                  >
                     <td className="px-5 py-3.5 font-medium text-slate-900">{r.name}</td>
                     <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{r.schedule_cron ?? "Manual"}</td>
                     <td className="px-5 py-3.5 text-slate-500">{r.last_run_at ? r.last_run_at.slice(0, 10) : "Never"}</td>

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import ChartTile from "../../components/ChartTile"
 import AppShell, { PageHeader } from "../../components/AppShell"
+import AnimatedNumber, { compact } from "../../components/AnimatedNumber"
 import { getQueryHistory, type QueryResult } from "../../lib/api"
-import { PlusIcon, CloseIcon, GridIcon, ReportIcon } from "../../components/icons"
+import { PlusIcon, CloseIcon, GridIcon, ReportIcon, BoltIcon, DatabaseIcon } from "../../components/icons"
 
 export default function DashboardPage() {
   const [tiles, setTiles] = useState<QueryResult[]>([])
@@ -59,9 +60,44 @@ export default function DashboardPage() {
           }
         />
 
+        {tiles.length > 0 && (
+          <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {(() => {
+              const dataPoints = tiles.reduce((sum, t) => sum + (t.result_cache?.length ?? 0), 0)
+              const chartTypes = new Set(
+                tiles.map((t) => t.chart_config?.chart_type).filter(Boolean)
+              ).size
+              const withViz = tiles.filter((t) => t.chart_config).length
+              const STATS = [
+                { label: "Charts pinned", value: tiles.length, Icon: GridIcon, fmt: undefined },
+                { label: "Data points", value: dataPoints, Icon: DatabaseIcon, fmt: compact },
+                { label: "Visualizations", value: withViz, Icon: BoltIcon, fmt: undefined },
+                { label: "Chart types", value: chartTypes, Icon: ReportIcon, fmt: undefined },
+              ]
+              return STATS.map((s, i) => (
+                <div
+                  key={s.label}
+                  style={{ animationDelay: `${i * 60}ms` }}
+                  className="card-interactive flex items-center gap-3 p-4 animate-fade-in-up"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <s.Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-2xl font-bold tracking-tight text-slate-900">
+                      <AnimatedNumber value={s.value} format={s.fmt} />
+                    </div>
+                    <div className="truncate text-xs font-medium text-slate-500">{s.label}</div>
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+        )}
+
         {tiles.length === 0 ? (
-          <div className="card flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+          <div className="card flex flex-col items-center justify-center gap-3 py-24 text-center animate-fade-in-up">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 animate-float">
               <GridIcon className="h-7 w-7" />
             </div>
             <p className="text-lg font-semibold text-slate-900">Your dashboard is empty</p>
@@ -72,8 +108,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {tiles.map((tile) => (
-              <div key={tile.id} className="group relative">
+            {tiles.map((tile, idx) => (
+              <div
+                key={tile.id}
+                className="group relative animate-fade-in-up"
+                style={{ animationDelay: `${idx * 60}ms` }}
+              >
                 <button
                   onClick={() => removeTile(tile.id)}
                   className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-soft transition hover:text-rose-500 group-hover:opacity-100"

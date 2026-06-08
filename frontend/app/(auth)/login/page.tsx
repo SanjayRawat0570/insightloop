@@ -41,9 +41,11 @@ export default function LoginPage() {
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Brand / showcase panel */}
       <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-900 via-brand-950 to-brand-800 p-12 text-white">
-        {/* Decorative glows */}
-        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-violet-500/30 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        {/* Decorative glows (gently drifting) */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-violet-500/30 blur-3xl animate-float" />
+        <div className="pointer-events-none absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl animate-pulse-soft" />
+        {/* Faint grid texture */}
+        <div className="pointer-events-none absolute inset-0 bg-grid-slate bg-grid opacity-[0.04]" />
 
         <div className="relative flex items-center gap-3">
           <BrandMark className="h-11 w-11" />
@@ -62,10 +64,14 @@ export default function LoginPage() {
             generate SQL, surface insights, and build reports — in seconds.
           </p>
 
-          <div className="mt-9 space-y-4">
-            {HIGHLIGHTS.map(({ Icon, title, desc }) => (
-              <div key={title} className="flex items-start gap-3.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+          <div className="mt-9 space-y-2">
+            {HIGHLIGHTS.map(({ Icon, title, desc }, i) => (
+              <div
+                key={title}
+                style={{ animationDelay: `${150 + i * 90}ms` }}
+                className="group flex items-start gap-3.5 rounded-xl p-2 -mx-2 transition-all duration-200 animate-fade-in-up hover:bg-white/5"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10 transition-all duration-200 group-hover:scale-110 group-hover:bg-white/15">
                   <Icon className="h-5 w-5 text-violet-200" />
                 </div>
                 <div>
@@ -83,7 +89,7 @@ export default function LoginPage() {
       </div>
 
       {/* Auth form panel */}
-      <div className="flex items-center justify-center bg-slate-50 p-6 sm:p-10">
+      <div className="flex items-center justify-center app-backdrop p-6 sm:p-10">
         <div className="w-full max-w-md animate-fade-in-up">
           {/* Mobile brand */}
           <div className="lg:hidden mb-8 flex items-center gap-3">

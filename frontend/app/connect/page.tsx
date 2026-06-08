@@ -111,13 +111,13 @@ export default function ConnectPage() {
               <button
                 key={s.key}
                 onClick={() => { setSelected(s.key); setForm(EMPTY_FORM); setError(""); setSuccess("") }}
-                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all ${
+                className={`group flex flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all duration-200 hover:-translate-y-0.5 ${
                   active
                     ? "border-brand-500 bg-brand-50 shadow-soft"
-                    : "border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50"
+                    : "border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50 hover:shadow-card"
                 }`}
               >
-                <span className="text-3xl">{s.icon}</span>
+                <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{s.icon}</span>
                 <span className="text-xs font-semibold text-slate-700">{s.label}</span>
               </button>
             )
@@ -210,8 +210,12 @@ export default function ConnectPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {sources.map((s) => (
-              <div key={s.id} className="card flex items-center justify-between px-5 py-4">
+            {sources.map((s, i) => (
+              <div
+                key={s.id}
+                style={{ animationDelay: `${i * 60}ms` }}
+                className="card-interactive flex items-center justify-between px-5 py-4 animate-fade-in-up"
+              >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                     <DatabaseIcon className="h-5 w-5" />

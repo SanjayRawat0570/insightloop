@@ -57,15 +57,19 @@ select {
   .card {
     @apply bg-white border border-slate-200/80 rounded-2xl shadow-soft;
   }
+  /* Interactive card: subtle lift + stronger shadow + brand border on hover. */
+  .card-interactive {
+    @apply card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-hover hover:border-brand-200;
+  }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
   }
   .btn-primary {
-    @apply btn text-white bg-brand-gradient shadow-glow hover:brightness-110 active:brightness-95;
+    @apply btn text-white bg-brand-gradient shadow-glow hover:brightness-110 hover:-translate-y-0.5 hover:shadow-glow-lg active:translate-y-0 active:brightness-95;
   }
   .btn-secondary {
-    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300;
+    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5 active:translate-y-0;
   }
   .btn-ghost {
     @apply btn text-slate-600 hover:bg-slate-100;
@@ -86,5 +90,45 @@ select {
 
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  /* Frosted-glass surface for sticky headers / bars. */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border-slate-200/70;
+  }
+
+  /* Shimmering skeleton placeholder. */
+  .skeleton {
+    @apply rounded-lg bg-slate-100 bg-shimmer bg-size-200 bg-no-repeat animate-shimmer;
+  }
+
+  /* Soft pill chip for metadata / tags. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600;
+  }
+
+  /* Hairline divider with label. */
+  .divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-slate-200 to-transparent;
+  }
+}
+
+/* Ambient page backdrop: faint brand wash + grid, sits behind app surfaces. */
+.app-backdrop {
+  background-color: rgb(248 250 252);
+  background-image:
+    radial-gradient(60rem 60rem at 110% -10%, rgb(238 242 255 / 0.8), transparent 60%),
+    radial-gradient(50rem 50rem at -10% 110%, rgb(250 245 255 / 0.7), transparent 55%);
+}
+
+/* Honor users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -183,8 +183,9 @@ export default function ChartTile({ chartConfig, data, narrative, isLoading, sql
   if (isLoading) {
     return (
       <div className="card p-5">
-        <div className="mb-3 h-4 w-1/2 animate-pulse rounded bg-slate-100" />
-        <div className="h-56 animate-pulse rounded-xl bg-slate-100" />
+        <div className="mb-3 h-4 w-1/2 skeleton" />
+        <div className="mb-4 h-3 w-1/3 skeleton" />
+        <div className="h-56 skeleton rounded-xl" />
       </div>
     )
   }
@@ -198,7 +199,7 @@ export default function ChartTile({ chartConfig, data, narrative, isLoading, sql
   }
 
   return (
-    <div className="card animate-fade-in-up overflow-hidden">
+    <div className="card-interactive group animate-fade-in-up overflow-hidden">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
         <div className="min-w-0">

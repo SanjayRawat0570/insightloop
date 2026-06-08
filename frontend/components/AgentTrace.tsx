@@ -91,7 +91,7 @@ export default function AgentTrace({ clientId, events: externalEvents }: Props) 
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden animate-scale-in">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -118,7 +118,12 @@ export default function AgentTrace({ clientId, events: externalEvents }: Props) 
             const status = getStepStatus(step.key)
             const preview = stepStates[step.key]?.preview
             return (
-              <div key={step.key} className="relative flex items-start gap-3 rounded-lg px-1 py-1.5">
+              <div
+                key={step.key}
+                className={`relative flex items-start gap-3 rounded-lg px-2 py-1.5 transition-colors duration-300 ${
+                  status === "active" ? "bg-brand-50/70" : ""
+                }`}
+              >
                 <div className="z-10 mt-0.5 shrink-0">
                   {status === "idle" && (
                     <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-200 bg-white" />
