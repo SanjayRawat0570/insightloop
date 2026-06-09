@@ -22,6 +22,8 @@ try:
     )
     from backend.utils.crypto import decrypt_connection_config, build_connection_url
     from backend.utils.schema_parser import parse_schema_from_connection_async, schema_to_prompt
+    from backend.utils.sql_guard import assert_read_only, UnsafeQueryError
+    from backend.connectors import materialize_source, SourceLoadError
 except ModuleNotFoundError:
     from api.ws import manager
     from agents.query_writer import generate_sql, QueryWriterError
@@ -39,6 +41,15 @@ except ModuleNotFoundError:
     )
     from utils.crypto import decrypt_connection_config, build_connection_url
     from utils.schema_parser import parse_schema_from_connection_async, schema_to_prompt
+    from utils.sql_guard import assert_read_only, UnsafeQueryError
+    from connectors import materialize_source, SourceLoadError
+
+try:
+    from backend.utils.logging_config import get_logger
+except ModuleNotFoundError:
+    from utils.logging_config import get_logger
+
+log = get_logger("pipeline")
 
 
 class InsightState(TypedDict, total=False):
@@ -66,7 +77,32 @@ async def _send_node_event(client_id: str, event_type: str, node: str, payload: 
     }
     if payload is not None:
         event["payload"] = payload
+
+    # Mirror every WS event to the console so backend logs tell the same story.
+    label = node or event_type
+    if event_type in ("node_error", "pipeline_error"):
+        log.error("[%s] FAILED: %s", label, (payload or {}).get("error"))
+    elif event_type == "node_start":
+        log.info("[%s] start", node)
+    elif event_type == "node_complete":
+        log.info("[%s] done %s", node, _summarize(payload))
+    elif event_type == "pipeline_complete":
+        log.info("pipeline complete")
+
     await manager.send_event(client_id, event)
+
+
+def _summarize(payload: dict | None) -> str:
+    """Compact one-line summary of a node_complete payload for the log."""
+    if not payload:
+        return ""
+    parts = []
+    for k, v in payload.items():
+        s = str(v)
+        if len(s) > 80:
+            s = s[:77] + "…"
+        parts.append(f"{k}={s}")
+    return " ".join(parts)
 
 
 def _current_user_id(state: InsightState) -> str | None:
@@ -101,59 +137,56 @@ def _dialect_from_url(url: str) -> str:
 
 
 async def _resolve_source(state: InsightState):
-    """Resolve the data source into (db_url, dialect, schema_text).
+    """Resolve the selected data source into (db_url, dialect, schema_text).
 
-    Performs the ownership check and introspects the schema so the Query Writer
-    has real tables/columns to work with. Raises RuntimeError on failure.
+    The connector layer materializes the source's REAL data (API/Sheets/CSV into
+    a per-source SQLite store, SQL databases queried in place), enforces the
+    ownership check, and introspects the schema so the Query Writer works against
+    actual tables/columns. Raises on failure — we never silently substitute the
+    bundled sample database for a selected source.
     """
-    fallback_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
-    db_url = fallback_url
-    dialect = state.get("dialect") or "postgres"
     schema_text = state.get("schema") or ""
-
     source_id = state.get("source_id")
-    cfg: dict = {}
-    has_live_connection = False
-    if source_id:
-        ds = await get_data_source(source_id)
-        if ds:
-            current_user_id = _current_user_id(state)
-            if not current_user_id or str(ds.user_id) != str(current_user_id):
-                raise PermissionError("unauthorized: data source does not belong to current user")
-            dialect = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
-            cfg = decrypt_connection_config(ds.connection_config or {})
-            source_url = cfg.get("connection_url") or build_connection_url(cfg, dialect)
-            if source_url:
-                db_url = source_url
-                has_live_connection = True
 
-    if not db_url:
-        raise RuntimeError("No source database available. Configure the data source connection.")
+    # No source selected: fall back to the configured dev database, if any.
+    if not source_id:
+        fallback_url = os.environ.get("SOURCE_DB_URL") or os.environ.get("DATABASE_URL")
+        if not fallback_url:
+            raise RuntimeError("No data source selected. Connect a source and pick it before asking.")
+        dialect = _dialect_from_url(fallback_url)
+        if not schema_text:
+            schema = await parse_schema_from_connection_async({"connection_url": fallback_url, "dialect": dialect})
+            schema_text = schema_to_prompt(schema)
+        return fallback_url, dialect, schema_text
 
-    # When the source has no live DB of its own (e.g. a csv/api source in local
-    # dev), we execute against the configured fallback database. Align the
-    # dialect with that database so introspection and SQL generation target it.
-    if not has_live_connection:
-        dialect = _dialect_from_url(db_url)
+    ds = await get_data_source(source_id)
+    if not ds:
+        raise RuntimeError("Selected data source was not found.")
 
-    # Introspect schema for the Query Writer prompt. If a "live" source turns out
-    # to be unreachable (e.g. a Postgres connected without a real server), fall
-    # back to the bundled sample database so the query still returns real data.
+    current_user_id = _current_user_id(state)
+    if not current_user_id or str(ds.user_id) != str(current_user_id):
+        raise PermissionError("unauthorized: data source does not belong to current user")
+
+    source_type = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
+    cfg = decrypt_connection_config(ds.connection_config or {})
+
+    # Materialize the source's real data (network/disk I/O — run off the loop).
+    try:
+        mat = await asyncio.to_thread(materialize_source, source_type, cfg, source_id)
+    except SourceLoadError as e:
+        raise RuntimeError(f"Could not load data from '{ds.name}': {e}")
+
+    db_url, dialect = mat.db_url, mat.dialect
+    log.info("source resolved name=%r type=%s dialect=%s live=%s", ds.name, source_type, dialect, mat.live)
+
     if not schema_text:
         try:
-            schema = await parse_schema_from_connection_async({**cfg, "connection_url": db_url, "dialect": dialect})
+            schema = await parse_schema_from_connection_async(
+                {**cfg, "connection_url": db_url, "dialect": dialect}
+            )
             schema_text = schema_to_prompt(schema)
-        except Exception:
-            if has_live_connection and fallback_url and fallback_url != db_url:
-                db_url = fallback_url
-                dialect = _dialect_from_url(db_url)
-                try:
-                    schema = await parse_schema_from_connection_async({"connection_url": db_url, "dialect": dialect})
-                    schema_text = schema_to_prompt(schema)
-                except Exception:
-                    schema_text = ""
-            else:
-                schema_text = ""
+        except Exception as e:
+            raise RuntimeError(f"Could not read schema for '{ds.name}': {e}")
 
     return db_url, dialect, schema_text
 
@@ -161,6 +194,10 @@ async def _resolve_source(state: InsightState):
 async def run_pipeline(state: InsightState, client_id: str, query_id: str | None = None):
     try:
         state["query_id"] = query_id or state.get("query_id") or None
+        log.info(
+            "query start id=%s source=%s q=%r",
+            state["query_id"], state.get("source_id"), (state.get("question") or "")[:80],
+        )
 
         # 0. Resolve data source + introspect schema (ownership enforced here).
         try:
@@ -187,6 +224,21 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
             state["error"] = str(e)
             await _send_node_event(client_id, "node_error", "query_writer", {"error": str(e)})
             await _send_node_event(client_id, "pipeline_error", "", {"error": str(e)})
+            return
+
+        # 1b. Read-only guardrail. Regardless of source type (Postgres, MySQL, or
+        # the materialized SQLite that backs MongoDB/API/Sheets/CSV), the
+        # generated SQL ultimately runs against a real database — so before it
+        # gets anywhere near execution we hard-block any mutating/DDL statement
+        # (UPDATE/DELETE/DROP/...) that the LLM may have produced.
+        try:
+            assert_read_only(state.get("sql") or "")
+        except UnsafeQueryError as e:
+            msg = f"Query blocked by safety guardrail: {e}"
+            log.error("[query_guard] BLOCKED sql=%r reason=%s", state.get("sql"), str(e))
+            state["error"] = msg
+            await _send_node_event(client_id, "node_error", "query_writer", {"error": msg})
+            await _send_node_event(client_id, "pipeline_error", "", {"error": msg})
             return
 
         try:
@@ -220,6 +272,7 @@ async def run_pipeline(state: InsightState, client_id: str, query_id: str | None
                 raise RuntimeError("No source database URL available. Set SOURCE_DB_URL or configure the datasource connection.")
 
             sql_to_run = state.get("sql") or "SELECT 1 as placeholder"
+            log.info("executing SQL: %s", " ".join(sql_to_run.split()))
             rows, exec_ms = await run_sql_on_url(db_url, sql_to_run)
             state["sql_result"] = rows
             state["execution_ms"] = exec_ms

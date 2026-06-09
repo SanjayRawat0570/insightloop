@@ -17,7 +17,13 @@ except ModuleNotFoundError:
     from db.mongo import get_mongo_db
     from tasks.scheduler import run_scheduled_report, report_pdf_path
 
+try:
+    from backend.utils.logging_config import get_logger
+except ModuleNotFoundError:
+    from utils.logging_config import get_logger
+
 router = APIRouter()
+log = get_logger("reports")
 
 _CRON_RE = re.compile(
     r"^(\*|[0-9,\-*/]+)\s+"
@@ -68,6 +74,7 @@ async def create_report(body: Dict, current_user: dict = Depends(get_current_use
     )
     db = get_mongo_db()
     await db.reports.insert_one(report.mongo_doc())
+    log.info("create id=%s name=%r cron=%s user=%s", report.id, name, report.schedule_cron, user_id)
     return _serialize({"_id": report.id, **report.model_dump()})
 
 
@@ -90,8 +97,16 @@ async def get_report(report_id: str, current_user: dict = Depends(get_current_us
 async def run_report(report_id: str, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("sub") or current_user.get("id")
     await _get_user_report(report_id, user_id)
+    log.info("run id=%s user=%s", report_id, user_id)
     result = await run_scheduled_report(report_id)
+    log.info("run done id=%s result=%s", report_id, _summarize_result(result))
     return {"status": "triggered", "result": result}
+
+
+def _summarize_result(result) -> str:
+    if isinstance(result, dict):
+        return " ".join(f"{k}={str(v)[:40]}" for k, v in result.items())
+    return str(result)[:80]
 
 
 @router.get("/{report_id}/download")

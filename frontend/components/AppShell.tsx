@@ -61,7 +61,7 @@ export default function AppShell({ children, scroll = true }: Props) {
   return (
     <div className="flex h-screen overflow-hidden app-backdrop">
       {/* Icon rail */}
-      <aside className="relative w-[84px] shrink-0 flex flex-col items-center gap-1 bg-gradient-to-b from-slate-900 via-brand-950 to-slate-900 py-4 text-slate-400 shadow-xl">
+      <aside className="relative w-[84px] shrink-0 flex flex-col items-center gap-1 bg-gradient-to-b from-graphite-950 via-graphite-900 to-graphite-950 py-4 text-graphite-300 shadow-xl">
         {/* faint glow at the top of the rail */}
         <div className="pointer-events-none absolute -top-10 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-brand-500/20 blur-2xl" />
 

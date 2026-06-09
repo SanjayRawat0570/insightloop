@@ -11,6 +11,7 @@ const SOURCE_TYPES = [
   { key: "csv", label: "CSV Upload", icon: "📄" },
   { key: "api", label: "REST API", icon: "🔌" },
   { key: "sheets", label: "Google Sheets", icon: "📊" },
+  { key: "mongodb", label: "MongoDB", icon: "🍃" },
 ] as const
 
 type SourceType = (typeof SOURCE_TYPES)[number]["key"]
@@ -24,9 +25,20 @@ interface FormState {
   password: string
   ssl: boolean
   url: string
+  headers: string
+  jsonPath: string
+  sheetUrl: string
+  csvUrl: string
+  mongoUri: string
+  mongoDb: string
+  mongoCollection: string
 }
 
-const EMPTY_FORM: FormState = { name: "", host: "", port: "", database: "", user: "", password: "", ssl: false, url: "" }
+const EMPTY_FORM: FormState = {
+  name: "", host: "", port: "", database: "", user: "", password: "", ssl: false,
+  url: "", headers: "", jsonPath: "", sheetUrl: "", csvUrl: "",
+  mongoUri: "", mongoDb: "", mongoCollection: "",
+}
 
 export default function ConnectPage() {
   const [sources, setSources] = useState<DataSource[]>([])
@@ -63,7 +75,13 @@ export default function ConnectPage() {
         selected === "postgres" || selected === "mysql"
           ? { host: form.host, port: Number(form.port) || undefined, database: form.database, user: form.user, password: form.password, ssl: form.ssl }
           : selected === "api"
-          ? { url: form.url }
+          ? { url: form.url, headers: form.headers || undefined, json_path: form.jsonPath || undefined }
+          : selected === "sheets"
+          ? { sheet_url: form.sheetUrl }
+          : selected === "csv"
+          ? { url: form.csvUrl }
+          : selected === "mongodb"
+          ? { uri: form.mongoUri, database: form.mongoDb, collection: form.mongoCollection || undefined }
           : {}
       await connectSource({ name: form.name, type: selected!, connection_config: cfg })
       setSuccess("Source connected successfully!")
@@ -104,7 +122,7 @@ export default function ConnectPage() {
         )}
 
         {/* Source type grid */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {SOURCE_TYPES.map((s) => {
             const active = selected === s.key
             return (
@@ -175,17 +193,77 @@ export default function ConnectPage() {
             )}
 
             {selected === "api" && (
+              <>
+                <div>
+                  <label className="label">API URL</label>
+                  <input value={form.url} onChange={(e) => updateForm({ url: e.target.value })}
+                    className="input" placeholder="https://api.example.com/v1/orders" />
+                </div>
+                <div>
+                  <label className="label">Headers <span className="font-normal text-slate-400">(optional)</span></label>
+                  <textarea value={form.headers} onChange={(e) => updateForm({ headers: e.target.value })}
+                    rows={3} className="input font-mono text-xs"
+                    placeholder={'Authorization: Bearer xxx\nX-Api-Key: yyy\n\n…or JSON: {"Authorization": "Bearer xxx"}'} />
+                </div>
+                <div>
+                  <label className="label">Data path <span className="font-normal text-slate-400">(optional)</span></label>
+                  <input value={form.jsonPath} onChange={(e) => updateForm({ jsonPath: e.target.value })}
+                    className="input" placeholder="data.results" />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Dot-path to the array of records in the response (e.g. <code>data.results</code>). Leave blank to auto-detect.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {selected === "sheets" && (
               <div>
-                <label className="label">API URL</label>
-                <input value={form.url} onChange={(e) => updateForm({ url: e.target.value })}
-                  className="input" placeholder="https://api.example.com/data" />
+                <label className="label">Google Sheet URL</label>
+                <input value={form.sheetUrl} onChange={(e) => updateForm({ sheetUrl: e.target.value })}
+                  className="input" placeholder="https://docs.google.com/spreadsheets/d/…/edit#gid=0" />
+                <p className="mt-1 text-xs text-slate-400">
+                  Share the sheet as <strong>“Anyone with the link → Viewer”</strong>. The first row is used as column headers.
+                </p>
               </div>
             )}
 
-            {(selected === "csv" || selected === "sheets") && (
-              <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                CSV and Sheets connections use the dev sample dataset in this build. Just give it a name and save.
-              </p>
+            {selected === "csv" && (
+              <div>
+                <label className="label">CSV URL or file path</label>
+                <input value={form.csvUrl} onChange={(e) => updateForm({ csvUrl: e.target.value })}
+                  className="input" placeholder="https://example.com/data.csv" />
+                <p className="mt-1 text-xs text-slate-400">
+                  A publicly reachable CSV URL, or an absolute file path on the server.
+                </p>
+              </div>
+            )}
+
+            {selected === "mongodb" && (
+              <>
+                <div>
+                  <label className="label">Connection string</label>
+                  <input value={form.mongoUri} onChange={(e) => updateForm({ mongoUri: e.target.value })}
+                    className="input font-mono text-xs" placeholder="mongodb+srv://user:pass@cluster0.xxxx.mongodb.net" />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Standard <code>mongodb://</code> or Atlas <code>mongodb+srv://</code> URI, including credentials.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Database</label>
+                    <input value={form.mongoDb} onChange={(e) => updateForm({ mongoDb: e.target.value })}
+                      className="input" placeholder="mydb" />
+                  </div>
+                  <div>
+                    <label className="label">Collection <span className="font-normal text-slate-400">(optional)</span></label>
+                    <input value={form.mongoCollection} onChange={(e) => updateForm({ mongoCollection: e.target.value })}
+                      className="input" placeholder="orders" />
+                  </div>
+                </div>
+                <p className="-mt-1 text-xs text-slate-400">
+                  Each collection becomes a queryable table; nested fields are flattened to <code>parent.child</code> columns. Leave the collection blank to load every collection.
+                </p>
+              </>
             )}
 
             {error && <p className="text-sm text-rose-600">{error}</p>}

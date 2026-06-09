@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Dict, Any
+from urllib.parse import quote
 from cryptography.fernet import Fernet, InvalidToken
 
 
@@ -56,11 +57,16 @@ def build_connection_url(config: Dict[str, Any], dialect: str = "postgres") -> s
     if config.get("connection_url"):
         return config.get("connection_url")
 
-    host = config.get("host") or config.get("hostname")
-    port = config.get("port")
-    database = config.get("database") or config.get("db") or config.get("dbname")
-    user = config.get("user") or config.get("username")
-    password = config.get("password") or config.get("pass")
+    # Trim stray whitespace that creeps in from copy/paste (a leading space in
+    # the host yields an unresolvable name -> getaddrinfo failed).
+    def _clean(v: Any) -> str:
+        return str(v).strip() if v is not None else ""
+
+    host = _clean(config.get("host") or config.get("hostname"))
+    port = _clean(config.get("port"))
+    database = _clean(config.get("database") or config.get("db") or config.get("dbname"))
+    user = _clean(config.get("user") or config.get("username"))
+    password = _clean(config.get("password") or config.get("pass"))
     if not host or not database:
         return None
 
@@ -68,16 +74,18 @@ def build_connection_url(config: Dict[str, Any], dialect: str = "postgres") -> s
         driver = "asyncpg"
         proto = f"postgresql+{driver}"
     elif dialect and dialect.lower().startswith("mysql"):
-        driver = config.get("driver") or "asyncmy"
+        driver = _clean(config.get("driver")) or "asyncmy"
         proto = f"mysql+{driver}"
     else:
         proto = dialect
 
+    # Percent-encode credentials so special chars (@ : / etc., common in
+    # Supabase/RDS passwords) don't corrupt URL parsing.
     creds = ""
     if user:
-        creds = user
+        creds = quote(user, safe="")
         if password:
-            creds += f":" + password
+            creds += ":" + quote(password, safe="")
         creds += "@"
 
     port_part = f":{port}" if port else ""

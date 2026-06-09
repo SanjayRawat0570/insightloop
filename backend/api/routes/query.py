@@ -15,7 +15,13 @@ except ModuleNotFoundError:
     from api.auth import get_current_user
     from db.mongo import get_query as mongo_get_query, list_queries_by_user
 
+try:
+    from backend.utils.logging_config import get_logger
+except ModuleNotFoundError:
+    from utils.logging_config import get_logger
+
 router = APIRouter()
+log = get_logger("query")
 
 
 # IMPORTANT: /query/history must be declared BEFORE /query/{query_id}
@@ -36,6 +42,7 @@ async def submit_query(body: Dict, current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=400, detail="question, source_id, and client_id are required")
 
     query_id = str(uuid4())
+    log.info("submit id=%s source=%s q=%r", query_id, source_id, str(question)[:80])
     state = {
         "question": question,
         "source_id": source_id,

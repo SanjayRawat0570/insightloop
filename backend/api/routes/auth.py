@@ -15,7 +15,13 @@ except ModuleNotFoundError:
     from db.models import User
     from db.mongo import create_user, find_user_by_email
 
+try:
+    from backend.utils.logging_config import get_logger
+except ModuleNotFoundError:
+    from utils.logging_config import get_logger
+
 router = APIRouter()
+log = get_logger("auth")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,10 +56,12 @@ async def register(body: Dict):
 
     existing = await find_user_by_email(email)
     if existing:
+        log.warning("register rejected (duplicate) email=%s", email)
         raise HTTPException(status_code=409, detail="email already registered")
 
     user = User(email=email, hashed_password=_hash_password(password))
     await create_user(user)
+    log.info("register ok email=%s user=%s", email, user.id)
 
     token = _create_token({"sub": user.id, "email": user.email})
     return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "email": user.email, "plan": user.plan}}
@@ -68,7 +76,9 @@ async def login(body: Dict):
 
     user = await find_user_by_email(email)
     if not user or not _verify_password(password, user.hashed_password):
+        log.warning("login failed email=%s", email)
         raise HTTPException(status_code=401, detail="invalid email or password")
 
+    log.info("login ok email=%s user=%s", email, user.id)
     token = _create_token({"sub": user.id, "email": user.email})
     return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "email": user.email, "plan": user.plan}}

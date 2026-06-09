@@ -4,11 +4,18 @@ from typing import List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
+try:
+    from backend.utils.sql_guard import assert_read_only
+except ModuleNotFoundError:
+    from utils.sql_guard import assert_read_only
+
 
 async def run_sql_on_url(db_url: str, sql: str) -> Tuple[List[Dict[str, Any]], int]:
     """Execute read-only SQL against db_url and return rows and execution_ms."""
-    if not sql.strip().lower().startswith("select"):
-        raise ValueError("Only SELECT queries are allowed")
+    # Final safety net: reject any mutating/DDL statement (UPDATE/DELETE/DROP/...)
+    # with the same regex guardrail the pipeline applies, so no caller can run a
+    # destructive query against the user's Postgres/MySQL/SQLite store.
+    assert_read_only(sql)
 
     # enforce LIMIT 1000
     lowered = sql.lower()

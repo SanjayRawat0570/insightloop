@@ -21,6 +21,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/chat/page.js"
     ],
+    "/connect/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/connect/page.js"
+    ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -31,10 +36,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/reports/page.js"
     ],
-    "/connect/page": [
+    "/(auth)/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/connect/page.js"
+      "static/chunks/app/(auth)/login/page.js"
     ]
   }
 }

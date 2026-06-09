@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Dict
 
@@ -15,6 +16,7 @@ try:
     )
     from backend.utils.crypto import encrypt_connection_config, decrypt_connection_config
     from backend.utils.schema_parser import parse_schema_from_connection_async
+    from backend.connectors import materialize_source, SourceLoadError
 except ModuleNotFoundError:
     from api.auth import get_current_user
     from db.models import DataSource, SourceType
@@ -25,8 +27,15 @@ except ModuleNotFoundError:
     )
     from utils.crypto import encrypt_connection_config, decrypt_connection_config
     from utils.schema_parser import parse_schema_from_connection_async
+    from connectors import materialize_source, SourceLoadError
+
+try:
+    from backend.utils.logging_config import get_logger
+except ModuleNotFoundError:
+    from utils.logging_config import get_logger
 
 router = APIRouter()
+log = get_logger("sources")
 
 
 async def _list_user_sources(user_id: str):
@@ -50,17 +59,23 @@ async def create_source(body: Dict, current_user: dict = Depends(get_current_use
     except ValueError:
         raise HTTPException(status_code=400, detail=f"unsupported source type: {source_type}")
 
-    # Best-effort connection test for SQL sources. We attempt it so a reachable
-    # database gets validated, but a failure does NOT block saving — queries fall
-    # back to the bundled sample database when a source is unreachable.
+    # Best-effort connection test. SQL sources are validated by introspecting the
+    # schema; API/Sheets/CSV sources by actually fetching + materializing their
+    # data. A failure does NOT block saving (the user may be fixing config), but
+    # the flag tells the UI whether the real data is reachable.
+    log.info("connect request name=%r type=%s user=%s", name, source_type, user_id)
     connection_ok = None
-    if source_type in ("postgres", "mysql"):
-        try:
+    try:
+        if source_type in ("postgres", "mysql"):
             await parse_schema_from_connection_async({**connection_config, "dialect": source_type})
-            connection_ok = True
-        except Exception:
-            connection_ok = False
+        else:
+            await asyncio.to_thread(materialize_source, source_type, connection_config, None)
+        connection_ok = True
+    except Exception as exc:
+        connection_ok = False
+        log.warning("connection test failed type=%s: %s", source_type, exc)
 
+    log.info("connect saved type=%s connection_ok=%s", source_type, connection_ok)
     encrypted = encrypt_connection_config(connection_config)
     ds = DataSource(
         user_id=user_id,
@@ -103,6 +118,7 @@ async def delete_source(source_id: str, current_user: dict = Depends(get_current
         raise HTTPException(status_code=404, detail="source not found")
     db = get_mongo_db()
     await db.data_sources.update_one({"_id": source_id}, {"$set": {"is_active": False}})
+    log.info("delete source=%s user=%s", source_id, user_id)
     return {"status": "deleted"}
 
 
@@ -114,34 +130,33 @@ async def get_schema(source_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(status_code=404, detail="source not found")
 
     cfg = decrypt_connection_config(ds.connection_config or {})
-    dialect = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
+    source_type = ds.type.value if hasattr(ds.type, "value") else str(ds.type)
+    log.info("schema request source=%s type=%s name=%r", source_id, source_type, ds.name)
 
-    # Try the source's own connection first.
-    schema = None
-    if dialect in ("postgres", "mysql") or cfg.get("connection_url"):
-        try:
-            schema = await parse_schema_from_connection_async({**cfg, "dialect": dialect})
-            if not schema.get("tables"):
-                schema = None  # reachable but empty / non-SQL → use sample below
-        except Exception:
-            schema = None
+    # Materialize the source's REAL data, then introspect that store so the
+    # schema browser shows exactly what queries will run against.
+    try:
+        mat = await asyncio.to_thread(materialize_source, source_type, cfg, source_id)
+    except SourceLoadError as exc:
+        log.warning("schema materialize failed source=%s: %s", source_id, exc)
+        raise HTTPException(status_code=422, detail=f"could not load source data: {exc}")
+    except Exception as exc:
+        log.warning("schema materialize failed source=%s: %s", source_id, exc)
+        raise HTTPException(status_code=422, detail=f"could not load source data: {exc}")
 
-    # Fall back to the bundled sample database so the schema browser always shows
-    # the data that queries will actually run against (matches the query-time
-    # fallback for unreachable sources).
-    if schema is None:
-        import os as _os
-        fallback_url = _os.environ.get("SOURCE_DB_URL") or _os.environ.get("DATABASE_URL")
-        if fallback_url:
-            try:
-                fb_dialect = "sqlite" if fallback_url.lower().startswith("sqlite") else "postgres"
-                schema = await parse_schema_from_connection_async(
-                    {"connection_url": fallback_url, "dialect": fb_dialect}
-                )
-                schema["fallback"] = True
-            except Exception as exc:
-                raise HTTPException(status_code=422, detail=f"schema fetch failed: {exc}")
-        else:
-            raise HTTPException(status_code=422, detail="schema unavailable and no fallback database configured")
+    try:
+        schema = await parse_schema_from_connection_async(
+            {**cfg, "connection_url": mat.db_url, "dialect": mat.dialect}
+        )
+    except Exception as exc:
+        log.warning("schema introspect failed source=%s: %s", source_id, exc)
+        raise HTTPException(status_code=422, detail=f"schema fetch failed: {exc}")
 
+    if not schema.get("tables"):
+        log.warning("schema empty source=%s type=%s", source_id, source_type)
+        raise HTTPException(status_code=422, detail="source has no tables to query")
+
+    log.info("schema ready source=%s tables=%d", source_id, len(schema.get("tables", [])))
+    schema["source_type"] = source_type
+    schema["live"] = mat.live
     return schema

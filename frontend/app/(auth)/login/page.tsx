@@ -40,10 +40,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Brand / showcase panel */}
-      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-slate-900 via-brand-950 to-brand-800 p-12 text-white">
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-graphite-950 via-graphite-900 to-graphite-800 p-12 text-white">
         {/* Decorative glows (gently drifting) */}
-        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-violet-500/30 blur-3xl animate-float" />
-        <div className="pointer-events-none absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl animate-pulse-soft" />
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-brand-500/25 blur-3xl animate-float" />
+        <div className="pointer-events-none absolute bottom-0 -left-24 h-96 w-96 rounded-full bg-brand-400/15 blur-3xl animate-pulse-soft" />
         {/* Faint grid texture */}
         <div className="pointer-events-none absolute inset-0 bg-grid-slate bg-grid opacity-[0.04]" />
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
             <SparkleIcon className="h-3.5 w-3.5" /> AI-native BI
           </span>
           <h2 className="text-4xl font-bold leading-tight tracking-tight">
-            Turn questions into <span className="text-gradient bg-gradient-to-r from-violet-300 to-fuchsia-300">decisions</span>.
+            Turn questions into <span className="text-gradient bg-gradient-to-r from-brand-300 to-brand-500">decisions</span>.
           </h2>
           <p className="mt-4 text-slate-300 leading-relaxed">
             Connect your data, ask in plain English, and let a team of AI agents
@@ -72,7 +72,7 @@ export default function LoginPage() {
                 className="group flex items-start gap-3.5 rounded-xl p-2 -mx-2 transition-all duration-200 animate-fade-in-up hover:bg-white/5"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10 transition-all duration-200 group-hover:scale-110 group-hover:bg-white/15">
-                  <Icon className="h-5 w-5 text-violet-200" />
+                  <Icon className="h-5 w-5 text-brand-200" />
                 </div>
                 <div>
                   <p className="font-semibold">{title}</p>
